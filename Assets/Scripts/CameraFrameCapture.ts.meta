@@ -1,0 +1,47 @@
+- !<AssetImportMetadata/9d31bf71-f677-4abd-adb1-1cd1c721bb37>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 1b5a576e-36cc-483f-b5ab-6b066704bd00
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 1b5a576e-36cc-483f-b5ab-6b066704bd00
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 700933e4-41ac-410c-8c46-66d384448a65
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/700933e4-41ac-410c-8c46-66d384448a65>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 32b360d9-2eba-4390-95e2-dfa1eea02118
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cameraFeedController: false
+    lyriaMusicController: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cameraFeedController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      lyriaMusicController: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input AssignableType cameraFeedController
+    - // @input AssignableType_1 lyriaMusicController

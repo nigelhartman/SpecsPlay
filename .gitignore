@@ -1,0 +1,4 @@
+.env
+Cache/
+backend/node_modules/
+*.lock

@@ -1,0 +1,56 @@
+- !<AssetImportMetadata/458fd100-4f3a-421d-945a-3382aa293b60>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> b6c68900-b004-45d1-a9b8-3692c5705b5e
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> b6c68900-b004-45d1-a9b8-3692c5705b5e
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 9432d86e-099f-441a-9ddc-7edb306b3c02
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/9432d86e-099f-441a-9ddc-7edb306b3c02>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 572773ac-9203-4b10-8224-30145ac32125
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    audioStreamPlayer: false
+    backendUrl: false
+    startStopButton: false
+    statusText: false
+    styleInput: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - backendUrl: ""
+      audioStreamPlayer: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      startStopButton: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+      styleInput: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
+      statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input string backendUrl {"hint":"wss://xxxx.ngrok-free.app  (update each ngrok session)"}'
+    - // @input AssignableType audioStreamPlayer
+    - // @input AssignableType_1 startStopButton
+    - // @input AssignableType_2 styleInput
+    - // @input Component.Text statusText

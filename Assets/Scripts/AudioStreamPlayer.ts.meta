@@ -1,0 +1,44 @@
+- !<AssetImportMetadata/b2e7df92-6d07-49f9-b248-9a50898e4180>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 44319c8f-3b06-421d-871a-d9a810ec9c58
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 44319c8f-3b06-421d-871a-d9a810ec9c58
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 6501b507-0d0a-4b29-bbdc-e5c177f67021
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/6501b507-0d0a-4b29-bbdc-e5c177f67021>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: faa07e0b-e1d7-4ced-ab9d-f7487eed98ea
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    dynamicAudioOutput: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - dynamicAudioOutput: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input AssignableType dynamicAudioOutput

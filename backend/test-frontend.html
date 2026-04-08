@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lyria Vision Test</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #111; color: #eee; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .status { font-size: 0.9rem; color: #60A5FA; margin-bottom: 20px; }
+    .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    button { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; }
+    #startBtn  { background: #22c55e; color: #000; }
+    #stopBtn   { background: #ef4444; color: #fff; }
+    #stopBtn:disabled, #startBtn:disabled { opacity: 0.4; cursor: default; }
+    input[type=text] { background: #222; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 8px 12px; font-size: 0.95rem; flex: 1; min-width: 200px; }
+    #dropzone { border: 2px dashed #444; border-radius: 10px; padding: 30px; text-align: center; color: #888; cursor: pointer; margin-bottom: 20px; }
+    #dropzone.over { border-color: #60A5FA; color: #60A5FA; }
+    #queue { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .thumb { position: relative; width: 120px; }
+    .thumb img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; border: 2px solid #333; }
+    .thumb.active img { border-color: #22c55e; }
+    .thumb .label { font-size: 0.75rem; color: #aaa; text-align: center; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .thumb .remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.7); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    #log { background: #1a1a1a; border-radius: 8px; padding: 12px; font-size: 0.8rem; font-family: monospace; height: 160px; overflow-y: auto; color: #aaa; }
+    #log .info { color: #60A5FA; }
+    #log .ok   { color: #22c55e; }
+    #log .err  { color: #ef4444; }
+    #timer { font-size: 0.85rem; color: #888; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Lyria Vision Test Frontend</h1>
+  <div class="status" id="statusText">Disconnected</div>
+
+  <div class="controls">
+    <input type="text" id="wsUrl" placeholder="ws://localhost:3000" value="ws://localhost:3000" />
+    <input type="text" id="styleInput" placeholder="Style prompt (optional)" />
+    <button id="startBtn">▶ Start</button>
+    <button id="stopBtn" disabled>■ Stop</button>
+  </div>
+
+  <div id="dropzone">Drop images here or click to upload</div>
+  <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
+
+  <div id="queue"></div>
+  <div id="timer"></div>
+  <div id="log"></div>
+
+  <script>
+    const wsUrlEl = document.getElementById('wsUrl')
+    const styleInputEl = document.getElementById('styleInput')
+    const startBtn = document.getElementById('startBtn')
+    const stopBtn = document.getElementById('stopBtn')
+    const statusText = document.getElementById('statusText')
+    const dropzone = document.getElementById('dropzone')
+    const fileInput = document.getElementById('fileInput')
+    const queueEl = document.getElementById('queue')
+    const logEl = document.getElementById('log')
+    const timerEl = document.getElementById('timer')
+
+    let images = [] // { name, dataUrl }
+    let ws = null
+    let currentIndex = 0
+    let intervalId = null
+    let audioCtx = null
+    let nextPlayTime = 0
+    const SAMPLE_RATE = 48000
+    const INTERVAL_MS = 5000
+
+    function log(msg, cls = '') {
+      const line = document.createElement('div')
+      if (cls) line.className = cls
+      line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg
+      logEl.appendChild(line)
+      logEl.scrollTop = logEl.scrollHeight
+    }
+
+    function setStatus(msg, cls = '') {
+      statusText.textContent = msg
+      statusText.style.color = cls === 'ok' ? '#22c55e' : cls === 'err' ? '#ef4444' : '#60A5FA'
+    }
+
+    // ── Image queue ──────────────────────────────────────────────────────────
+
+    function addImages(files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader()
+        reader.onload = e => {
+          const img = new Image()
+          img.onload = () => {
+            const MAX = 800
+            const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.round(img.width * scale)
+            canvas.height = Math.round(img.height * scale)
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+            const kb = Math.round(dataUrl.length * 0.75 / 1024)
+            log('Loaded ' + file.name + ' → ' + canvas.width + 'x' + canvas.height + ' (' + kb + 'KB)')
+            images.push({ name: file.name, dataUrl })
+            renderQueue()
+          }
+          img.src = e.target.result
+        }
+        reader.readAsDataURL(file)
+      })
+    }
+
+    function renderQueue() {
+      queueEl.innerHTML = ''
+      images.forEach((img, i) => {
+        const div = document.createElement('div')
+        div.className = 'thumb' + (i === currentIndex && ws ? ' active' : '')
+        div.innerHTML = `
+          <img src="${img.dataUrl}" draggable="true" data-i="${i}">
+          <div class="label">${i + 1}. ${img.name}</div>
+          <button class="remove" data-i="${i}">×</button>
+        `
+        div.querySelector('.remove').onclick = (e) => {
+          images.splice(parseInt(e.target.dataset.i), 1)
+          renderQueue()
+        }
+        queueEl.appendChild(div)
+      })
+    }
+
+    dropzone.onclick = () => fileInput.click()
+    fileInput.onchange = e => addImages(e.target.files)
+    dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add('over') }
+    dropzone.ondragleave = () => dropzone.classList.remove('over')
+    dropzone.ondrop = e => { e.preventDefault(); dropzone.classList.remove('over'); addImages(e.dataTransfer.files) }
+
+    // ── Audio playback ───────────────────────────────────────────────────────
+
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE })
+        nextPlayTime = audioCtx.currentTime
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume()
+    }
+
+    function playPCM16(uint8) {
+      ensureAudioCtx()
+      const samples = uint8.length / 2
+      const buffer = audioCtx.createBuffer(1, samples, SAMPLE_RATE)
+      const ch = buffer.getChannelData(0)
+      for (let i = 0; i < samples; i++) {
+        const lo = uint8[i * 2], hi = uint8[i * 2 + 1]
+        const s = ((hi << 8) | lo) << 16 >> 16
+        ch[i] = s / 32768
+      }
+      const src = audioCtx.createBufferSource()
+      src.buffer = buffer
+      src.connect(audioCtx.destination)
+      const when = Math.max(nextPlayTime, audioCtx.currentTime + 0.05)
+      src.start(when)
+      nextPlayTime = when + buffer.duration
+    }
+
+    // ── WebSocket + stream control ───────────────────────────────────────────
+
+    startBtn.onclick = () => {
+      if (!images.length) { log('Add at least one image first', 'err'); return }
+      ensureAudioCtx()
+      currentIndex = 0
+      connect()
+    }
+
+    stopBtn.onclick = () => {
+      sendStop()
+    }
+
+    function connect() {
+      const url = wsUrlEl.value.trim()
+      setStatus('Connecting...')
+      log('Connecting to ' + url)
+      ws = new WebSocket(url)
+      ws.binaryType = 'arraybuffer'
+
+      ws.onopen = () => {
+        log('Connected', 'ok')
+        setStatus('Connected', 'ok')
+        startBtn.disabled = true
+        stopBtn.disabled = false
+        const stylePrompt = styleInputEl.value.trim()
+        ws.send(JSON.stringify({ type: 'start', stylePrompt }))
+        scheduleFrames()
+      }
+
+      ws.onmessage = e => {
+        if (e.data instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(e.data)
+          log('Audio chunk: ' + bytes.length + ' bytes', 'ok')
+          playPCM16(bytes)
+        } else {
+          try {
+            const msg = JSON.parse(e.data)
+            if (msg.type === 'status') log('[status] ' + msg.state + (msg.message ? ': ' + msg.message : ''), msg.state === 'error' ? 'err' : 'info')
+          } catch (_) {}
+        }
+      }
+
+      ws.onclose = () => {
+        cleanup()
+        setStatus('Disconnected')
+        log('Disconnected')
+      }
+
+      ws.onerror = () => {
+        cleanup()
+        setStatus('Connection error', 'err')
+        log('WebSocket error', 'err')
+      }
+    }
+
+    function scheduleFrames() {
+      sendFrame()
+      let remaining = INTERVAL_MS
+      timerEl.textContent = 'Next frame in ' + (remaining / 1000).toFixed(0) + 's'
+      intervalId = setInterval(() => {
+        remaining -= 1000
+        if (remaining <= 0) {
+          sendFrame()
+          remaining = INTERVAL_MS
+        }
+        timerEl.textContent = 'Next frame in ' + (remaining / 1000).toFixed(0) + 's'
+      }, 1000)
+    }
+
+    function sendFrame() {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !images.length) return
+      const img = images[currentIndex]
+      currentIndex = (currentIndex + 1) % images.length
+
+      // Convert dataUrl to base64 (strip the data:image/...;base64, prefix)
+      const base64 = img.dataUrl.split(',')[1]
+      ws.send(JSON.stringify({ type: 'frame', data: base64 }))
+      log('Sent frame: ' + img.name + ' (' + Math.round(base64.length / 1024) + 'KB)')
+      renderQueue()
+    }
+
+    function sendStop() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'stop' }))
+        ws.close()
+      }
+      cleanup()
+      setStatus('Stopped')
+    }
+
+    function cleanup() {
+      clearInterval(intervalId)
+      intervalId = null
+      ws = null
+      startBtn.disabled = false
+      stopBtn.disabled = true
+      timerEl.textContent = ''
+      renderQueue()
+    }
+  </script>
+</body>
+</html>
