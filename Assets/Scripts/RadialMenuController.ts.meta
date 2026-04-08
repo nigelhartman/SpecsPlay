@@ -1,20 +1,20 @@
-- !<AssetImportMetadata/458fd100-4f3a-421d-945a-3382aa293b60>
+- !<AssetImportMetadata/a509ba5b-2a9e-405f-864c-c41a90c4db72>
   ImportedAssetIds:
-    TypeScriptAsset: !<reference> b6c68900-b004-45d1-a9b8-3692c5705b5e
+    TypeScriptAsset: !<reference> 6e6f26ef-1923-4ffd-b297-dd65fd7012d5
   ImporterName: TypeScriptAssetImporter
-  PrimaryAsset: !<reference> b6c68900-b004-45d1-a9b8-3692c5705b5e
+  PrimaryAsset: !<reference> 6e6f26ef-1923-4ffd-b297-dd65fd7012d5
   PackageType: NotAPackage
   LegacyPackagePolicy: ~
   ExtraData:
     {}
   AssetDataMap:
-    TypeScriptAsset: !<own> 9432d86e-099f-441a-9ddc-7edb306b3c02
+    TypeScriptAsset: !<own> 6f473f2a-8cd5-49a1-8597-0edff6e9983d
   DependentFiles:
     []
   ImporterSettings: !<AssetImporterSettings>
     {}
   CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
-- !<TypeScriptAssetData/9432d86e-099f-441a-9ddc-7edb306b3c02>
+- !<TypeScriptAssetData/6f473f2a-8cd5-49a1-8597-0edff6e9983d>
   SvgIcon: ""
   SetupScript:
     code: ""
@@ -22,13 +22,11 @@
   VersionMajor: 0
   VersionMinor: 0
   VersionPatch: 0
-  ComponentUid: 572773ac-9203-4b10-8224-30145ac32125
+  ComponentUid: 0b730bd3-2c1b-41d2-a111-b1d6cf02725d
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    audioStreamPlayer: false
-    backendUrl: false
-    cameraFeedController: false
+    lyriaMusicController: false
     statusText: false
   ScriptTypesHidden:
     {}
@@ -39,15 +37,11 @@
   Attachments:
     []
   DefaultScriptInputs:
-    - backendUrl: ""
-      audioStreamPlayer: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      cameraFeedController: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+    - lyriaMusicController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
       statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
-    - '// @input string backendUrl {"hint":"wss://xxxx.ngrok-free.app  (update each ngrok session)"}'
-    - // @input AssignableType audioStreamPlayer
-    - // @input AssignableType_1 cameraFeedController
+    - // @input AssignableType lyriaMusicController
     - // @input Component.Text statusText

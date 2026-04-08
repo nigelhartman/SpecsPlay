@@ -1,7 +1,7 @@
 CollapsedEntities:
   type: stringset
   value:
-    size: 679
+    size: 680
     values:
       - Audio Output.audioOutput
       - Material/Base.png
@@ -92,6 +92,7 @@ CollapsedEntities:
       - Scripts/CameraFeedController.ts
       - Scripts/CameraFrameCapture.ts
       - Scripts/LyriaMusicController.ts
+      - Scripts/RadialMenuController.ts
       - SnapDecorators.lspkg
       - SnapDecorators.lspkg/Examples.ts
       - SnapDecorators.lspkg/Examples__PLACE_IN_SCENE.prefab
