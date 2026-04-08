@@ -1,36 +1,41 @@
 /**
- * Lyria Vision Proxy — backend/server.js
+ * Lyria Song Generator — backend/server.js
  *
- * Accepts a single WebSocket connection from the Spectacles lens.
- * Protocol (Spectacles → server):
- *   { type: "start", stylePrompt: string }   — open Lyria session and start playing
- *   { type: "frame", data: "<base64 JPEG>" } — analyze scene with Gemini Vision
- *   { type: "stop" }                         — pause Lyria and close session
+ * Accepts a WebSocket connection from Spectacles or the test frontend.
+ * Protocol (client → server):
+ *   { type: "generate", imageBase64: string, style: "kpop"|"rock"|"hiphop" }
  *
- * Protocol (server → Spectacles):
- *   Binary Uint8Array frames                 — raw PCM 16-bit 48 kHz stereo from Lyria
- *   { type: "status", state, message? }      — control/error messages
+ * Protocol (server → client):
+ *   { type: "status", state: "generating"|"done"|"error", message? }
+ *   Binary Uint8Array — raw PCM 16-bit 48 kHz stereo chunks
  *
- * Setup:
- *   npm install
- *   GEMINI_API_KEY=<your-key> node server.js
- *   # In another terminal: ngrok http 3000  → use the wss:// URL in Lens Studio
+ * Requirements:
+ *   ffmpeg must be installed (brew install ffmpeg)
+ *   GEMINI_API_KEY set in ../.env
  */
 
 "use strict"
 
 const { WebSocketServer } = require("ws")
 const { GoogleGenAI } = require("@google/genai")
+const { execFile } = require("child_process")
+const { promisify } = require("util")
+const execFileAsync = promisify(execFile)
+const fs = require("fs")
+const os = require("os")
+const path = require("path")
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? ""
-const VISION_MODEL = "gemini-2.5-flash"
-const LYRIA_MODEL = "models/lyria-realtime-exp"
+const LYRIA_MODEL = "lyria-3-clip-preview"
 
-// How often to call Vision even if new frames arrive faster (ms)
-const VISION_THROTTLE_MS = 5000
+const STYLE_PROMPTS = {
+  kpop:   "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat",
+  rock:   "energetic rock song with electric guitar riffs, powerful drums, and driving rhythm",
+  hiphop: "hip-hop track with heavy bass, rhythmic beats, and urban atmosphere",
+}
 
 if (!GEMINI_API_KEY) {
   console.error("[server] FATAL: GEMINI_API_KEY environment variable not set")
@@ -41,15 +46,23 @@ if (!GEMINI_API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
-// Patch SDK bug: double-slash in WebSocket URL (googleapis.com//ws/...)
-const wsf = ai.live.music.webSocketFactory
-const origCreate = wsf.create.bind(wsf)
-wsf.create = (url, ...rest) => {
-  const fixed = url
-    .replace("googleapis.com//ws/", "googleapis.com/ws/")
-    .replace("v1beta.GenerativeService", "v1alpha.GenerativeService")
-  console.log("[lyria] Connecting to:", fixed)
-  return origCreate(fixed, ...rest)
+// ── Audio conversion ──────────────────────────────────────────────────────────
+
+async function mp3ToPcm16(mp3Buffer) {
+  const tmpIn  = path.join(os.tmpdir(), `lyria_in_${Date.now()}.mp3`)
+  const tmpOut = path.join(os.tmpdir(), `lyria_out_${Date.now()}.pcm`)
+  try {
+    fs.writeFileSync(tmpIn, mp3Buffer)
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", tmpIn,
+      "-f", "s16le", "-ar", "48000", "-ac", "2",
+      tmpOut,
+    ])
+    return fs.readFileSync(tmpOut)
+  } finally {
+    if (fs.existsSync(tmpIn))  fs.unlinkSync(tmpIn)
+    if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut)
+  }
 }
 
 // ── WebSocket server ──────────────────────────────────────────────────────────
@@ -59,195 +72,79 @@ console.log(`[server] Listening on ws://localhost:${PORT}`)
 console.log("[server] Run:  ngrok http " + PORT + "  then paste the wss:// URL into Lens Studio")
 
 wss.on("connection", (ws) => {
-  console.log("[server] Spectacles connected")
-
-  /** @type {import("@google/genai").LiveMusicSession | null} */
-  let lyriaSession = null
-  let stylePrompt = ""
-  let lastSceneDesc = ""
-  let lastVisionTime = 0
-  let visionInFlight = false
-
-  // ── Send helpers ────────────────────────────────────────────────────────────
+  console.log("[server] Client connected")
 
   const sendStatus = (state, message) => {
     if (ws.readyState !== ws.OPEN) return
     ws.send(JSON.stringify({ type: "status", state, ...(message ? { message } : {}) }))
   }
 
-  // ── Lyria session ───────────────────────────────────────────────────────────
-
-  const openLyriaSession = async () => {
-    try {
-      lyriaSession = await ai.live.music.connect({
-        model: LYRIA_MODEL,
-        callbacks: {
-          onmessage: (msg) => {
-            const chunks = msg.serverContent?.audioChunks
-            if (chunks?.length) {
-              for (const chunk of chunks) {
-                if (!chunk.data) continue
-                const pcm = Buffer.from(chunk.data, "base64")
-                console.log("[lyria] audio chunk:", pcm.length, "bytes")
-                if (ws.readyState === ws.OPEN) ws.send(pcm)
-              }
-            }
-            if (msg.setupComplete) {
-              console.log("[lyria] Setup complete, calling play()")
-              lyriaSession.play()
-            }
-            if (msg.filteredPrompt) {
-              console.warn("[lyria] Prompt filtered:", JSON.stringify(msg.filteredPrompt))
-            }
-          },
-          onerror: (e) => {
-            console.error("[lyria] Error:", e.error ?? e)
-            sendStatus("error", String(e.error ?? e))
-          },
-          onclose: (e) => {
-            console.log("[lyria] Session closed, code:", e.code)
-            lyriaSession = null
-          },
-        },
-      })
-
-      console.log("[lyria] Connected, waiting for setupComplete...")
-      await applyPrompt(lastSceneDesc)
-      sendStatus("ready")
-    } catch (err) {
-      console.error("[lyria] Failed to open session:", err)
-      sendStatus("error", "Lyria session failed: " + err.message)
-    }
-  }
-
-  const closeLyriaSession = async () => {
-    if (!lyriaSession) return
-    try {
-      await lyriaSession.stop()
-    } catch (_) {}
-    lyriaSession = null
-  }
-
-  // ── Prompt builder ──────────────────────────────────────────────────────────
-
-  /**
-   * Combine the Gemini Vision scene description with the user's style prompt
-   * and push it to Lyria as a weighted prompt.
-   */
-  const applyPrompt = async (sceneDesc) => {
-    if (!lyriaSession) return
-
-    const parts = []
-    if (sceneDesc) parts.push(sceneDesc)
-    if (stylePrompt) parts.push(stylePrompt)
-    const combined = parts.join(", ") || "ambient instrumental music"
-
-    console.log("[lyria] Updating prompt →", combined)
-    try {
-      await lyriaSession.setWeightedPrompts({ weightedPrompts: [{ text: combined, weight: 1.0 }] })
-    } catch (err) {
-      console.error("[lyria] setWeightedPrompts failed:", err)
-    }
-  }
-
-  // ── Gemini Vision ───────────────────────────────────────────────────────────
-
-  /**
-   * Describe the scene in the JPEG using Gemini Vision.
-   * Returns a 5–8 word mood/environment description, e.g. "sunny park, playful daytime atmosphere".
-   */
-  const describeScene = async (base64Jpeg) => {
-    const resp = await ai.models.generateContent({
-      model: VISION_MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Jpeg,
-              },
-            },
-            {
-              text: 'Describe this scene in 5-8 words focusing on mood, lighting, and environment. Reply with ONLY the description, no punctuation.',
-            },
-          ],
-        },
-      ],
-    })
-    return resp.text?.trim() ?? ""
-  }
-
-  // ── Message handler ─────────────────────────────────────────────────────────
-
   ws.on("message", async (data, isBinary) => {
+    if (isBinary) return
+
     let msg
     try {
-      const str = data.toString()
-      try {
-        msg = JSON.parse(str)
-      } catch (e) {
-        const pos = parseInt(e.message.match(/position (\d+)/)?.[1] ?? "0")
-        if (pos > 0) {
-          msg = JSON.parse(str.slice(0, pos))
-        } else {
-          throw e
-        }
-      }
-    } catch (e) {
-      console.warn("[server] Parse error:", e.message)
+      msg = JSON.parse(data.toString())
+    } catch {
       return
     }
 
-    switch (msg.type) {
-      case "start":
-        stylePrompt = (msg.stylePrompt ?? "").trim()
-        console.log("[server] Start requested, stylePrompt:", stylePrompt || "(none)")
-        await openLyriaSession()
-        break
+    if (msg.type !== "generate") return
 
-      case "stop":
-        console.log("[server] Stop requested")
-        await closeLyriaSession()
-        sendStatus("stopped")
-        break
+    const style      = msg.style ?? "kpop"
+    const imageBase64 = msg.imageBase64 ?? null
+    const stylePrompt = STYLE_PROMPTS[style] ?? STYLE_PROMPTS.kpop
 
-      case "frame": {
-        const now = Date.now()
-        if (visionInFlight || now - lastVisionTime < VISION_THROTTLE_MS) break
+    console.log(`[server] Generating ${style} song...`)
+    sendStatus("generating")
 
-        visionInFlight = true
-        lastVisionTime = now
-
-        try {
-          const sceneDesc = await describeScene(msg.data)
-          if (sceneDesc && sceneDesc !== lastSceneDesc) {
-            console.log("[vision] Scene:", sceneDesc)
-            lastSceneDesc = sceneDesc
-            await applyPrompt(sceneDesc)
-          }
-        } catch (err) {
-          console.error("[vision] Error:", err.message)
-        } finally {
-          visionInFlight = false
-        }
-        break
+    try {
+      const parts = [
+        { text: `Generate a ${stylePrompt} inspired by this scene.` },
+      ]
+      if (imageBase64) {
+        parts.push({ inlineData: { mimeType: "image/jpeg", data: imageBase64 } })
       }
 
-      default:
-        console.warn("[server] Unknown message type:", msg.type)
+      const response = await ai.models.generateContent({
+        model: LYRIA_MODEL,
+        contents: parts,
+        config: { responseModalities: ["AUDIO"] },
+      })
+
+      let mp3Buffer = null
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          mp3Buffer = Buffer.from(part.inlineData.data, "base64")
+          console.log(`[server] Received audio: ${mp3Buffer.length} bytes (${part.inlineData.mimeType})`)
+          break
+        }
+      }
+
+      if (!mp3Buffer) {
+        sendStatus("error", "No audio in response")
+        return
+      }
+
+      console.log("[server] Converting MP3 → PCM16 48kHz stereo...")
+      const pcm = await mp3ToPcm16(mp3Buffer)
+      console.log(`[server] PCM ready: ${pcm.length} bytes (~${Math.round(pcm.length / 48000 / 4)}s), sending...`)
+
+      // Send in 1-second chunks for progressive playback
+      const CHUNK = 48000 * 2 * 2 // 1s @ 48kHz stereo PCM16
+      for (let i = 0; i < pcm.length; i += CHUNK) {
+        if (ws.readyState !== ws.OPEN) break
+        ws.send(pcm.slice(i, i + CHUNK))
+      }
+
+      sendStatus("done")
+      console.log("[server] Done")
+    } catch (err) {
+      console.error("[server] Generation error:", err.message)
+      sendStatus("error", err.message)
     }
   })
 
-  // ── Connection close ────────────────────────────────────────────────────────
-
-  ws.on("close", async () => {
-    console.log("[server] Spectacles disconnected")
-    await closeLyriaSession()
-  })
-
-  ws.on("error", (err) => {
-    console.error("[server] WebSocket error:", err)
-  })
+  ws.on("close", () => console.log("[server] Client disconnected"))
+  ws.on("error", (err) => console.error("[server] Error:", err))
 })

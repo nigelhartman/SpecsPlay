@@ -1,6 +1,6 @@
 import { RectangleButton } from "SpectaclesUIKit.lspkg/Scripts/Components/Button/RectangleButton"
-import { TextInputField } from "SpectaclesUIKit.lspkg/Scripts/Components/TextInputField/TextInputField"
 import { AudioStreamPlayer } from "./AudioStreamPlayer"
+import { CameraFeedController } from "./CameraFeedController"
 
 @component
 export class LyriaMusicController extends BaseScriptComponent {
@@ -11,17 +11,19 @@ export class LyriaMusicController extends BaseScriptComponent {
   backendUrl: string = ""
 
   @input audioStreamPlayer: AudioStreamPlayer
-  @input startStopButton: RectangleButton
-  @input styleInput: TextInputField
+  @input cameraFeedController: CameraFeedController
 
-  /** Optional Text component to show connection status */
+  @input kpopButton: RectangleButton
+  @input rockButton: RectangleButton
+  @input hiphopButton: RectangleButton
+
   @input statusText: Text
 
   // ── Private state ───────────────────────────────────────────────────────────
 
   private internetModule: InternetModule = require("LensStudio:InternetModule")
   private socket: WebSocket | null = null
-  private streaming: boolean = false
+  private isGenerating: boolean = false
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -30,112 +32,105 @@ export class LyriaMusicController extends BaseScriptComponent {
       if (!this.backendUrl) {
         print("[LyriaMusicController] ERROR: backendUrl is not set in Inspector")
       }
-      if (!this.audioStreamPlayer) {
-        print("[LyriaMusicController] ERROR: audioStreamPlayer input not set")
-      }
-      if (!this.startStopButton) {
-        print("[LyriaMusicController] ERROR: startStopButton input not set")
-        return
-      }
-      this.startStopButton.onTriggerUp.add(() => this.toggleStream())
-      this.setStatus("Ready")
-      print("[LyriaMusicController] Initialized")
+      this.kpopButton?.onTriggerUp.add(() => this.generate("kpop"))
+      this.rockButton?.onTriggerUp.add(() => this.generate("rock"))
+      this.hiphopButton?.onTriggerUp.add(() => this.generate("hiphop"))
+      this.connect()
     })
   }
 
-  // ── Public API (used by CameraFrameCapture) ─────────────────────────────────
+  // ── WebSocket connection ────────────────────────────────────────────────────
 
-  public isStreaming(): boolean {
-    return this.streaming
-  }
-
-  public sendFrame(base64: string): void {
-    if (!this.socket || !this.streaming) return
-    this.socket.send(JSON.stringify({ type: "frame", data: base64 }))
-  }
-
-  // ── Stream control ──────────────────────────────────────────────────────────
-
-  private toggleStream(): void {
-    if (this.streaming) {
-      this.stopStream()
-    } else {
-      this.startStream()
-    }
-  }
-
-  private startStream(): void {
-    if (!this.backendUrl) {
-      print("[LyriaMusicController] Cannot start: backendUrl not set")
-      this.setStatus("Error: no backend URL")
-      return
-    }
+  private connect(): void {
+    if (!this.backendUrl) return
 
     this.setStatus("Connecting...")
-    print("[LyriaMusicController] Connecting to " + this.backendUrl)
-
     this.socket = this.internetModule.createWebSocket(this.backendUrl)
 
     this.socket.onopen = () => {
-      this.streaming = true
       print("[LyriaMusicController] Connected")
-      this.setStatus("Streaming")
-
-      const stylePrompt = this.styleInput ? this.styleInput.text : ""
-      this.socket.send(JSON.stringify({ type: "start", stylePrompt }))
+      this.setStatus("Ready — pick a style")
     }
 
     this.socket.onmessage = (event: WebSocketMessageEvent) => {
       if (event.data instanceof Blob) {
-        // Binary frame = raw PCM from Lyria
         event.data.bytes().then((bytes: Uint8Array) => {
           this.audioStreamPlayer.addFrame(bytes)
         })
       } else {
-        // JSON control message from backend
         try {
           const msg = JSON.parse(event.data as string)
           if (msg.type === "status") {
-            print("[LyriaMusicController] Backend status: " + msg.state)
-            if (msg.state === "error") this.setStatus("Error: " + (msg.message ?? "unknown"))
+            if (msg.state === "generating") this.setStatus("Generating...")
+            else if (msg.state === "done") { this.isGenerating = false; this.setStatus("Playing") }
+            else if (msg.state === "error") {
+              this.isGenerating = false
+              this.setStatus("Error")
+              print("[LyriaMusicController] Error: " + (msg.message ?? "unknown"))
+            }
           }
-        } catch (_) {
-          // ignore unparseable messages
-        }
+        } catch (_) {}
       }
     }
 
     this.socket.onclose = () => {
-      if (this.streaming) {
-        print("[LyriaMusicController] Connection closed unexpectedly")
-        this.setStatus("Disconnected")
-      }
-      this.streaming = false
-      this.audioStreamPlayer.stop()
+      print("[LyriaMusicController] Disconnected")
+      this.isGenerating = false
+      this.setStatus("Disconnected")
     }
 
-    this.socket.onerror = (event: WebSocketEvent) => {
-      print("[LyriaMusicController] WebSocket error: " + JSON.stringify(event))
+    this.socket.onerror = (_event: WebSocketEvent) => {
+      print("[LyriaMusicController] WebSocket error")
+      this.isGenerating = false
       this.setStatus("Connection error")
-      this.streaming = false
-      this.audioStreamPlayer.stop()
     }
   }
 
-  private stopStream(): void {
-    if (!this.socket) return
-    this.streaming = false
-    try {
-      this.socket.send(JSON.stringify({ type: "stop" }))
-    } catch (_) {}
-    this.socket.close()
-    this.socket = null
+  // ── Song generation ─────────────────────────────────────────────────────────
+
+  private generate(style: string): void {
+    if (this.isGenerating) {
+      print("[LyriaMusicController] Already generating, ignoring tap")
+      return
+    }
+    if (!this.socket) {
+      print("[LyriaMusicController] Not connected")
+      return
+    }
+
+    const texture = this.cameraFeedController?.cameraTexture
+    if (!texture) {
+      print("[LyriaMusicController] No camera texture available")
+      this.setStatus("No camera")
+      return
+    }
+
+    this.isGenerating = true
     this.audioStreamPlayer.stop()
-    this.setStatus("Stopped")
-    print("[LyriaMusicController] Stream stopped")
+    this.setStatus("Capturing...")
+
+    Base64.encodeTextureAsync(
+      texture,
+      (base64: string) => {
+        this.setStatus("Generating " + style + "...")
+        this.socket.send(JSON.stringify({ type: "generate", imageBase64: base64, style }))
+      },
+      () => {
+        this.isGenerating = false
+        this.setStatus("Capture failed")
+        print("[LyriaMusicController] WARN: texture encode failed")
+      },
+      CompressionQuality.LowQuality,
+      EncodingType.Jpg
+    )
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Keep CameraFrameCapture compatible — always false in song-based mode */
+  public isStreaming(): boolean {
+    return false
+  }
 
   private setStatus(msg: string): void {
     if (this.statusText) this.statusText.text = msg
