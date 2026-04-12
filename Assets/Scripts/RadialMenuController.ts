@@ -27,11 +27,8 @@ const HOVER_DIST = 3.5
 /** Dead-zone radius (cm) — releasing within this from origin does nothing */
 const DEAD_ZONE = 2.5
 
-/** Distance in front of camera to place the menu (cm) */
-const MENU_DEPTH = 30
-
 /** Scale of each label SceneObject (cm) */
-const ITEM_SCALE = 2.5
+const ITEM_SCALE = 1.5
 
 @component
 export class RadialMenuController extends BaseScriptComponent {
@@ -72,13 +69,7 @@ export class RadialMenuController extends BaseScriptComponent {
     if (this.isMenuOpen) return
     this.isMenuOpen = true
 
-    // Anchor origin at pinch point projected to MENU_DEPTH in front of camera
-    const tipPos = this.rightHand.indexTip.position
-    const camPos = this.camera.getWorldPosition()
-    const camFwd = this.camera.forward()
-    const depth = tipPos.sub(camPos).dot(camFwd.uniformScale(-1))
-    const d = Math.max(10, Math.min(depth, MENU_DEPTH))
-    this.pinchOrigin = camPos.add(camFwd.uniformScale(-d))
+    this.pinchOrigin = this.rightHand.indexTip.position
 
     this.buildMenu()
     print("[RadialMenu] Opened")
@@ -138,6 +129,7 @@ export class RadialMenuController extends BaseScriptComponent {
   private buildMenu(): void {
     this.menuRoot = global.scene.createSceneObject("RadialMenuRoot")
     this.menuRoot.getTransform().setWorldPosition(this.pinchOrigin)
+    this.orientToCamera()
     this.itemObjects = []
     this.itemTexts = []
     this.hoveredIndex = -1
@@ -165,6 +157,36 @@ export class RadialMenuController extends BaseScriptComponent {
     }
 
     this.updateHighlights()
+  }
+
+  private orientToCamera(): void {
+    if (!this.menuRoot) return
+    const camPos = this.camera.getWorldPosition()
+    const menuPos = this.menuRoot.getTransform().getWorldPosition()
+    const f = camPos.sub(menuPos).normalize() // local +Z toward camera
+
+    const worldUp = new vec3(0, 1, 0)
+    const r = worldUp.cross(f).normalize()    // local +X (right)
+    const u = f.cross(r).normalize()          // local +Y (up)
+
+    // Rotation matrix (columns = r, u, f) → quaternion
+    const trace = r.x + u.y + f.z
+    let qw: number, qx: number, qy: number, qz: number
+    if (trace > 0) {
+      const s = 0.5 / Math.sqrt(trace + 1)
+      qw = 0.25 / s; qx = (u.z - f.y) * s; qy = (f.x - r.z) * s; qz = (r.y - u.x) * s
+    } else if (r.x > u.y && r.x > f.z) {
+      const s = 2 * Math.sqrt(1 + r.x - u.y - f.z)
+      qw = (u.z - f.y) / s; qx = 0.25 * s; qy = (u.x + r.y) / s; qz = (f.x + r.z) / s
+    } else if (u.y > f.z) {
+      const s = 2 * Math.sqrt(1 + u.y - r.x - f.z)
+      qw = (f.x - r.z) / s; qx = (u.x + r.y) / s; qy = 0.25 * s; qz = (f.y + u.z) / s
+    } else {
+      const s = 2 * Math.sqrt(1 + f.z - r.x - u.y)
+      qw = (r.y - u.x) / s; qx = (f.x + r.z) / s; qy = (f.y + u.z) / s; qz = 0.25 * s
+    }
+
+    this.menuRoot.getTransform().setWorldRotation(new quat(qw, qx, qy, qz))
   }
 
   private destroyMenu(): void {

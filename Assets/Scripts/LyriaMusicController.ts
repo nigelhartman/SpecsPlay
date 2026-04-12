@@ -19,6 +19,8 @@ export class LyriaMusicController extends BaseScriptComponent {
   private socket: WebSocket | null = null
   private isGenerating: boolean = false
   private lastFrameBase64: string = ""
+  private lastCacheTime: number = 0
+  private isCaching: boolean = false
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -113,13 +115,19 @@ export class LyriaMusicController extends BaseScriptComponent {
   // ── Frame caching ───────────────────────────────────────────────────────────
 
   private cacheFrame(): void {
+    if (this.isCaching) return
+    const now = getTime()
+    if (now - this.lastCacheTime < 3) return
+
     const texture = this.cameraFeedController?.cameraTexture
     if (!texture) return
 
+    this.isCaching = true
+    this.lastCacheTime = now
     Base64.encodeTextureAsync(
       texture,
-      (base64: string) => { this.lastFrameBase64 = base64 },
-      () => {},
+      (base64: string) => { this.lastFrameBase64 = base64; this.isCaching = false },
+      () => { this.isCaching = false },
       CompressionQuality.LowQuality,
       EncodingType.Jpg
     )
