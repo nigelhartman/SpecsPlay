@@ -1,0 +1,56 @@
+- !<AssetImportMetadata/1eb11935-d051-487c-988d-4263ff72d063>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 4acf6bbd-c1c7-4073-9910-6150e65f5f05
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 4acf6bbd-c1c7-4073-9910-6150e65f5f05
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 59e21ce9-15ed-4403-96c5-177ec6e92cad
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/59e21ce9-15ed-4403-96c5-177ec6e92cad>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: f409ce51-891a-4823-bb94-817e1b213d9b
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    albumArtMaterial: false
+    audioStreamPlayer: false
+    lyriaMusicController: false
+    pauseIconMaterial: false
+    playIconMaterial: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - audioStreamPlayer: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      lyriaMusicController: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+      albumArtMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      playIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      pauseIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input AssignableType audioStreamPlayer
+    - // @input AssignableType_1 lyriaMusicController
+    - '// @input Asset.Material albumArtMaterial {"hint":"Unlit material for the album art — empty cover by default, swapped when a song is generated"}'
+    - '// @input Asset.Material playIconMaterial {"hint":"Optional icon material for the Play state"}'
+    - '// @input Asset.Material pauseIconMaterial {"hint":"Optional icon material for the Pause state"}'

@@ -13,6 +13,12 @@ export class LyriaMusicController extends BaseScriptComponent {
   @input cameraFeedController: CameraFeedController
   @input statusText: Text
 
+  // ── Public state ────────────────────────────────────────────────────────────
+
+  public songId: number = 0       // increments each time a new song starts generating
+  public get generating(): boolean { return this.isGenerating }
+  public albumArtTexture: Texture | null = null
+
   // ── Private state ───────────────────────────────────────────────────────────
 
   private internetModule: InternetModule = require("LensStudio:InternetModule")
@@ -155,8 +161,14 @@ export class LyriaMusicController extends BaseScriptComponent {
   }
 
   private sendGenerate(genre: string, imageBase64: string): void {
+    this.songId++
     this.setStatus("Generating " + genre + "...")
     this.socket.send(JSON.stringify({ type: "generate", imageBase64, style: genre }))
+    Base64.decodeTextureAsync(
+      imageBase64,
+      (tex: Texture) => { this.albumArtTexture = tex },
+      () => { print("[LyriaMusicController] Failed to decode album art texture") }
+    )
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
