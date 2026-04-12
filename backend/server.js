@@ -32,9 +32,12 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? ""
 const LYRIA_MODEL = "lyria-3-clip-preview"
 
 const STYLE_PROMPTS = {
-  kpop:   "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat",
-  rock:   "energetic rock song with electric guitar riffs, powerful drums, and driving rhythm",
-  hiphop: "hip-hop track with heavy bass, rhythmic beats, and urban atmosphere",
+  kpop:       "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat",
+  rock:       "energetic rock song with electric guitar riffs, powerful drums, and driving rhythm",
+  hiphop:     "hip-hop track with heavy bass, rhythmic beats, and urban atmosphere",
+  jazz:       "smooth jazz with expressive saxophone, walking bass, and brushed drums",
+  classical:  "orchestral classical piece with strings, piano, and rich harmonic progressions",
+  electronic: "atmospheric electronic music with synthesizer pads, evolving textures, and subtle rhythms",
 }
 
 if (!GEMINI_API_KEY) {

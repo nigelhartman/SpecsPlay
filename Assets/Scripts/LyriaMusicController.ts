@@ -1,4 +1,3 @@
-import { RectangleButton } from "SpectaclesUIKit.lspkg/Scripts/Components/Button/RectangleButton"
 import { AudioStreamPlayer } from "./AudioStreamPlayer"
 import { CameraFeedController } from "./CameraFeedController"
 
@@ -12,11 +11,6 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   @input audioStreamPlayer: AudioStreamPlayer
   @input cameraFeedController: CameraFeedController
-
-  @input kpopButton: RectangleButton
-  @input rockButton: RectangleButton
-  @input hiphopButton: RectangleButton
-
   @input statusText: Text
 
   // ── Private state ───────────────────────────────────────────────────────────
@@ -24,6 +18,9 @@ export class LyriaMusicController extends BaseScriptComponent {
   private internetModule: InternetModule = require("LensStudio:InternetModule")
   private socket: WebSocket | null = null
   private isGenerating: boolean = false
+  private lastFrameBase64: string = ""
+  private lastCacheTime: number = 0
+  private isCaching: boolean = false
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -32,12 +29,39 @@ export class LyriaMusicController extends BaseScriptComponent {
       if (!this.backendUrl) {
         print("[LyriaMusicController] ERROR: backendUrl is not set in Inspector")
       }
-      this.kpopButton?.onTriggerUp.add(() => this.generate("kpop"))
-      this.rockButton?.onTriggerUp.add(() => this.generate("rock"))
-      this.hiphopButton?.onTriggerUp.add(() => this.generate("hiphop"))
+      // Continuously cache latest camera frame so menu selection is instant
+      this.createEvent("UpdateEvent").bind(() => this.cacheFrame())
       this.connect()
     })
   }
+
+  // ── Public API ──────────────────────────────────────────────────────────────
+
+  /** Called by RadialMenuController when the user selects a genre */
+  public generateForGenre(genre: string): void {
+    if (this.isGenerating) {
+      print("[LyriaMusicController] Already generating, ignoring")
+      return
+    }
+    if (!this.socket) {
+      print("[LyriaMusicController] Not connected")
+      return
+    }
+
+    this.isGenerating = true
+    this.audioStreamPlayer.stop()
+
+    if (this.lastFrameBase64) {
+      this.sendGenerate(genre, this.lastFrameBase64)
+    } else {
+      // Fallback: capture fresh frame
+      this.captureAndGenerate(genre)
+    }
+  }
+
+  /** Keep CameraFrameCapture compatible */
+  public isStreaming(): boolean { return false }
+  public sendFrame(_base64: string): void {}
 
   // ── WebSocket connection ────────────────────────────────────────────────────
 
@@ -49,7 +73,7 @@ export class LyriaMusicController extends BaseScriptComponent {
 
     this.socket.onopen = () => {
       print("[LyriaMusicController] Connected")
-      this.setStatus("Ready — pick a style")
+      this.setStatus("Pinch to pick genre")
     }
 
     this.socket.onmessage = (event: WebSocketMessageEvent) => {
@@ -62,8 +86,10 @@ export class LyriaMusicController extends BaseScriptComponent {
           const msg = JSON.parse(event.data as string)
           if (msg.type === "status") {
             if (msg.state === "generating") this.setStatus("Generating...")
-            else if (msg.state === "done") { this.isGenerating = false; this.setStatus("Playing") }
-            else if (msg.state === "error") {
+            else if (msg.state === "done") {
+              this.isGenerating = false
+              this.setStatus("Playing — pinch to change")
+            } else if (msg.state === "error") {
               this.isGenerating = false
               this.setStatus("Error")
               print("[LyriaMusicController] Error: " + (msg.message ?? "unknown"))
@@ -86,51 +112,54 @@ export class LyriaMusicController extends BaseScriptComponent {
     }
   }
 
-  // ── Song generation ─────────────────────────────────────────────────────────
+  // ── Frame caching ───────────────────────────────────────────────────────────
 
-  private generate(style: string): void {
-    if (this.isGenerating) {
-      print("[LyriaMusicController] Already generating, ignoring tap")
-      return
-    }
-    if (!this.socket) {
-      print("[LyriaMusicController] Not connected")
-      return
-    }
+  private cacheFrame(): void {
+    if (this.isCaching) return
+    const now = getTime()
+    if (now - this.lastCacheTime < 3) return
 
     const texture = this.cameraFeedController?.cameraTexture
+    if (!texture) return
+
+    this.isCaching = true
+    this.lastCacheTime = now
+    Base64.encodeTextureAsync(
+      texture,
+      (base64: string) => { this.lastFrameBase64 = base64; this.isCaching = false },
+      () => { this.isCaching = false },
+      CompressionQuality.LowQuality,
+      EncodingType.Jpg
+    )
+  }
+
+  private captureAndGenerate(genre: string): void {
+    const texture = this.cameraFeedController?.cameraTexture
     if (!texture) {
-      print("[LyriaMusicController] No camera texture available")
+      this.isGenerating = false
       this.setStatus("No camera")
       return
     }
 
-    this.isGenerating = true
-    this.audioStreamPlayer.stop()
     this.setStatus("Capturing...")
-
     Base64.encodeTextureAsync(
       texture,
-      (base64: string) => {
-        this.setStatus("Generating " + style + "...")
-        this.socket.send(JSON.stringify({ type: "generate", imageBase64: base64, style }))
-      },
+      (base64: string) => this.sendGenerate(genre, base64),
       () => {
         this.isGenerating = false
         this.setStatus("Capture failed")
-        print("[LyriaMusicController] WARN: texture encode failed")
       },
       CompressionQuality.LowQuality,
       EncodingType.Jpg
     )
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-
-  /** Keep CameraFrameCapture compatible — always false in song-based mode */
-  public isStreaming(): boolean {
-    return false
+  private sendGenerate(genre: string, imageBase64: string): void {
+    this.setStatus("Generating " + genre + "...")
+    this.socket.send(JSON.stringify({ type: "generate", imageBase64, style: genre }))
   }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   private setStatus(msg: string): void {
     if (this.statusText) this.statusText.text = msg
