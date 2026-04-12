@@ -13,23 +13,19 @@ export class CameraFeedController extends BaseScriptComponent {
   onAwake(): void {
     this.createEvent("OnStartEvent").bind(() => {
       try {
-        this.image = this.sceneObject.getComponent("Component.Image") as Image
-
-        if (!this.image) {
-          print("[CameraFeedController] No Image component found on " + this.sceneObject.name)
-          return
-        }
-
         const cameraRequest = CameraModule.createCameraRequest()
         cameraRequest.cameraId = CameraModule.CameraId.Default_Color
 
         this.cameraTexture = this.cameraModule.requestCamera(cameraRequest)
         const provider = this.cameraTexture.control as CameraTextureProvider
 
-        if (provider) {
-          print("[CameraFeedController] Camera ready, attaching frame listener")
+        // Display feed on Image component if one is present (optional, for debugging)
+        this.image = this.sceneObject.getComponent("Component.Image") as Image
+        if (provider && this.image) {
           provider.onNewFrame.add(this.onNewFrame.bind(this))
-        } else {
+        }
+
+        if (!provider) {
           print("[CameraFeedController] ERROR: CameraTextureProvider is null")
         }
       } catch (e) {
@@ -39,8 +35,6 @@ export class CameraFeedController extends BaseScriptComponent {
   }
 
   private onNewFrame(): void {
-    if (this.image && this.cameraTexture) {
-      this.image.mainPass.baseTex = this.cameraTexture
-    }
+    this.image.mainPass.baseTex = this.cameraTexture
   }
 }

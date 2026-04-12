@@ -2,7 +2,7 @@
  * RadialMenuController
  *
  * Shows a radial genre menu when the user pinches their right hand.
- * - Pinch down  → menu appears at pinch origin, 30 cm in front of camera
+ * - Pinch down  → menu appears at exact pinch position, facing camera
  * - Hold & move → nearest item within activation radius highlights
  * - Pinch up    → if far enough from origin, selected genre triggers generation
  *                 if near origin (dead zone) → menu closes, nothing happens
@@ -19,7 +19,7 @@ const GENRES = ["K-Pop", "Rock", "Hip-Hop", "Jazz", "Classical", "Electronic"]
 const GENRE_KEYS = ["kpop", "rock", "hiphop", "jazz", "classical", "electronic"]
 
 /** Radius of the radial ring in cm */
-const RING_RADIUS = 6
+const RING_RADIUS = 9.36
 
 /** How close (cm) a finger must be to an item to highlight it */
 const HOVER_DIST = 3.5
@@ -35,12 +35,19 @@ export class RadialMenuController extends BaseScriptComponent {
   @input lyriaMusicController: LyriaMusicController
   @input statusText: Text
 
+  @input
+  @hint("Drag in a Sphere prefab for the center dot indicator")
+  centerSpherePrefab: ObjectPrefab
+
+
   private rightHand: TrackedHand
   private camera = WorldCameraFinderProvider.getInstance()
 
   private menuRoot: SceneObject | null = null
   private itemObjects: SceneObject[] = []
   private itemTexts: Text[] = []
+  private itemUnderlines: Text[] = []
+  private sphereMaterial: Material | null = null
 
   private pinchOrigin: vec3 = new vec3(0, 0, 0)
   private hoveredIndex: number = -1
@@ -132,6 +139,7 @@ export class RadialMenuController extends BaseScriptComponent {
     this.orientToCamera()
     this.itemObjects = []
     this.itemTexts = []
+    this.itemUnderlines = []
     this.hoveredIndex = -1
 
     const count = GENRES.length
@@ -152,8 +160,29 @@ export class RadialMenuController extends BaseScriptComponent {
       textComp.horizontalAlignment = HorizontalAlignment.Center
       textComp.verticalAlignment = VerticalAlignment.Center
 
+      // Underline indicator (hidden by default, shown when hovered)
+      const ulObj = global.scene.createSceneObject("UL_" + GENRES[i])
+      ulObj.setParent(item)
+      ulObj.getTransform().setLocalPosition(new vec3(0, -0.6, 0))
+      const ulText = ulObj.createComponent("Component.Text") as Text
+      ulText.text = "─────"
+      ulText.horizontalAlignment = HorizontalAlignment.Center
+      ulText.verticalAlignment = VerticalAlignment.Center
+      ulText.textFill.color = new vec4(1, 1, 0, 0)
+
       this.itemObjects.push(item)
       this.itemTexts.push(textComp)
+      this.itemUnderlines.push(ulText)
+    }
+
+    // Center sphere at pinch origin
+    this.sphereMaterial = null
+    if (this.centerSpherePrefab) {
+      const sphereObj = this.centerSpherePrefab.instantiate(this.menuRoot)
+      sphereObj.getTransform().setLocalPosition(new vec3(0, 0, 0))
+      sphereObj.getTransform().setLocalScale(new vec3(0.8, 0.8, 0.8))
+      const mv = sphereObj.getComponent("Component.RenderMeshVisual") as RenderMeshVisual
+      if (mv) this.sphereMaterial = mv.mainMaterial
     }
 
     this.updateHighlights()
@@ -196,16 +225,26 @@ export class RadialMenuController extends BaseScriptComponent {
     }
     this.itemObjects = []
     this.itemTexts = []
+    this.itemUnderlines = []
+    this.sphereMaterial = null
     this.hoveredIndex = -1
   }
 
   private updateHighlights(): void {
+    const anyHovered = this.hoveredIndex >= 0
     for (let i = 0; i < this.itemTexts.length; i++) {
       if (i === this.hoveredIndex) {
-        this.itemTexts[i].textFill.color = new vec4(0.2, 1.0, 0.4, 1.0) // bright green
+        this.itemTexts[i].textFill.color = new vec4(1.0, 1.0, 0.0, 1.0) // yellow
+        this.itemUnderlines[i].textFill.color = new vec4(1.0, 1.0, 0.0, 1.0)
       } else {
         this.itemTexts[i].textFill.color = new vec4(1.0, 1.0, 1.0, 0.85)
+        this.itemUnderlines[i].textFill.color = new vec4(1.0, 1.0, 0.0, 0.0)
       }
+    }
+    if (this.sphereMaterial) {
+      this.sphereMaterial.mainPass.baseColor = anyHovered
+        ? new vec4(1.0, 1.0, 0.0, 1.0)
+        : new vec4(1.0, 1.0, 1.0, 1.0)
     }
   }
 }
