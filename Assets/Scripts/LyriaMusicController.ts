@@ -114,12 +114,6 @@ export class LyriaMusicController extends BaseScriptComponent {
       (track: AudioTrackAsset) => {
         print("[LyriaMusicController] Audio loaded, playing")
         this.audioComponent.audioTrack = track
-        this.audioComponent.setOnFinish(() => {
-          // Track finished — reset to start so user can replay
-          print("[LyriaMusicController] Track finished, resetting to start")
-          this.audioComponent.play(1)
-          this.audioComponent.pause()
-        })
         this.audioComponent.play(1)
         this.isGenerating = false
         this.connected = true
