@@ -77,7 +77,7 @@ export class HandMenuController extends BaseScriptComponent {
     // 3. Play/Pause button
     this.playPauseObj = global.scene.createSceneObject("HandMenu_PlayPause")
     this.playPauseObj.setParent(this.menuRoot)
-    this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -1.25, 0))
+    this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -1.75, 0))
     this.playPauseObj.getTransform().setLocalScale(new vec3(2, 2, 2))
 
     if (this.playIconMaterial || this.pauseIconMaterial) {

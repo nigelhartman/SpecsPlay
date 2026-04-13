@@ -29,7 +29,7 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   private internetModule: InternetModule = require("LensStudio:InternetModule")
   private isGenerating: boolean = false
-  private connected: boolean = false
+  private connected: boolean = true  // optimistic — set false only on confirmed failure
   private lastFrameBase64: string = ""
   private lastCacheTime: number = 0
   private isCaching: boolean = false
@@ -69,11 +69,7 @@ export class LyriaMusicController extends BaseScriptComponent {
   // ── Connection check ────────────────────────────────────────────────────────
 
   private checkConnection(): void {
-    const req = new Request(this.backendUrl + "/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style: "ping", imageBase64: "" }),
-    })
+    const req = new Request(this.backendUrl + "/health", { method: "GET" })
     this.internetModule.fetch(req, {}).then(() => {
       this.connected = true
       print("[LyriaMusicController] Connected")

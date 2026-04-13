@@ -152,7 +152,7 @@ export class RadialMenuController extends BaseScriptComponent {
         const rad = (this.generatingAngle * Math.PI) / 180
         const s = Math.sin(rad * 0.5)
         const c = Math.cos(rad * 0.5)
-        this.centerLabelObj.getTransform().setLocalRotation(new quat(c, 0, 0, s))
+        this.centerLabelObj.getTransform().setLocalRotation(new quat(c, 0, 0, -s))
       }
       return
     }

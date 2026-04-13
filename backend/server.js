@@ -31,7 +31,7 @@ const AUDIO_DIR  = path.join(__dirname, "tmp_audio")
 const FILE_TTL   = 10 * 60 * 1000  // 10 minutes
 
 const STYLE_PROMPTS = {
-  kpop:       "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat",
+  kpop:       "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat, lyrics mixing English and Korean",
   rock:       "energetic rock song with electric guitar riffs, powerful drums, and driving rhythm",
   hiphop:     "hip-hop track with heavy bass, rhythmic beats, and urban atmosphere",
   jazz:       "smooth jazz with expressive saxophone, walking bass, and brushed drums",
@@ -95,6 +95,13 @@ const server = http.createServer((req, res) => {
 
   if (req.method === "OPTIONS") {
     res.writeHead(204); res.end(); return
+  }
+
+  // GET /health
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain" })
+    res.end("ok")
+    return
   }
 
   // POST /generate
