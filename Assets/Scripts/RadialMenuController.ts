@@ -73,18 +73,20 @@ export class RadialMenuController extends BaseScriptComponent {
 
   private openMenu(): void {
     if (this.isMenuOpen) return
-
-    // No backend connection → show error indicator
-    if (!this.lyriaMusicController.isConnected) {
-      this.isMenuOpen = true
-      this.pinchOrigin = this.rightHand.indexTip.position
-      this.buildErrorMenu()
-      print("[RadialMenu] No connection")
-      return
-    }
-
     this.isMenuOpen = true
     this.pinchOrigin = this.rightHand.indexTip.position
+
+    // Check connection at pinch time, then show appropriate menu
+    this.lyriaMusicController.checkConnection().then((ok) => {
+      if (!this.isMenuOpen) return  // pinch was cancelled before check finished
+      if (!ok) {
+        this.buildErrorMenu()
+        print("[RadialMenu] No connection")
+        return
+      }
+      this.buildMenu()
+      print("[RadialMenu] Opened")
+    })
     this.buildMenu()
     print("[RadialMenu] Opened")
   }
