@@ -76,17 +76,14 @@ export class RadialMenuController extends BaseScriptComponent {
     this.isMenuOpen = true
     this.pinchOrigin = this.rightHand.indexTip.position
 
-    // Check connection at pinch time, then show appropriate menu
-    this.lyriaMusicController.checkConnection().then((ok) => {
-      if (!this.isMenuOpen) return  // pinch was cancelled before check finished
-      if (!ok) {
-        this.buildErrorMenu()
-        print("[RadialMenu] No connection")
-        return
-      }
-      this.buildMenu()
-      print("[RadialMenu] Opened")
-    })
+    if (!this.lyriaMusicController.isConnected) {
+      this.buildErrorMenu()
+      print("[RadialMenu] No connection")
+      return
+    }
+
+    this.buildMenu()
+    print("[RadialMenu] Opened")
     this.buildMenu()
     print("[RadialMenu] Opened")
   }
@@ -274,7 +271,7 @@ export class RadialMenuController extends BaseScriptComponent {
     msgObj.getTransform().setLocalPosition(new vec3(0, -1.5, 0))
     msgObj.getTransform().setLocalScale(new vec3(0.9, 0.9, 0.9))
     const errMsg = msgObj.createComponent("Component.Text") as Text
-    errMsg.text = "Server not reachable"
+    errMsg.text = "Server not reachable.\nPlease restart the lens.\nIf the problem persists,\ncontact the server owner."
     errMsg.horizontalAlignment = HorizontalAlignment.Center
     errMsg.verticalAlignment = VerticalAlignment.Center
     errMsg.textFill.color = new vec4(1, 0.2, 0.2, 1)
