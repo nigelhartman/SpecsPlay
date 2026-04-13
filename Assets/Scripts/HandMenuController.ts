@@ -83,7 +83,7 @@ export class HandMenuController extends BaseScriptComponent {
     // 3. Restart button (left of play/pause)
     this.restartObj = global.scene.createSceneObject("HandMenu_Restart")
     this.restartObj.setParent(this.menuRoot)
-    this.restartObj.getTransform().setLocalPosition(new vec3(-2.5, -2.0, 0))
+    this.restartObj.getTransform().setLocalPosition(new vec3(-1.25, -2.0, 0))
     this.restartObj.getTransform().setLocalScale(new vec3(2, 2, 2))
     if (this.restartIconMaterial) {
       const restartIcon = this.restartObj.createComponent("Component.Image") as Image
@@ -98,7 +98,7 @@ export class HandMenuController extends BaseScriptComponent {
     // 4. Play/Pause button
     this.playPauseObj = global.scene.createSceneObject("HandMenu_PlayPause")
     this.playPauseObj.setParent(this.menuRoot)
-    this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -2.0, 0))
+    this.playPauseObj.getTransform().setLocalPosition(new vec3(1.25, -2.0, 0))
     this.playPauseObj.getTransform().setLocalScale(new vec3(2, 2, 2))
 
     if (this.playIconMaterial || this.pauseIconMaterial) {
