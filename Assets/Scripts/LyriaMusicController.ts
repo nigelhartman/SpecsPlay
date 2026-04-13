@@ -113,6 +113,9 @@ export class LyriaMusicController extends BaseScriptComponent {
       resource,
       (track: AudioTrackAsset) => {
         print("[LyriaMusicController] Audio loaded, playing")
+        // Stop and clear previous track before assigning new one
+        if (this.audioComponent.isPlaying()) this.audioComponent.stop(false)
+        this.audioComponent.audioTrack = null
         this.audioComponent.audioTrack = track
         this.audioComponent.play(1)
         this.isGenerating = false
