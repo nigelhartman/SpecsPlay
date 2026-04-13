@@ -5,8 +5,8 @@ export class LyriaMusicController extends BaseScriptComponent {
   // ── Inspector inputs ────────────────────────────────────────────────────────
 
   @input
-  @hint("https://xxxx.ngrok-free.app  (update each ngrok session)")
-  backendUrl: string = ""
+  @hint("Backend URL — e.g. https://specsplay.functionforest.com")
+  backendUrl: string = "https://specsplay.functionforest.com"
 
   @input cameraFeedController: CameraFeedController
 
