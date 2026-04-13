@@ -42,8 +42,10 @@ export class RadialMenuController extends BaseScriptComponent {
   private itemTexts: Text[] = []
   private itemUnderlines: Text[] = []
   private sphereMaterial: Material | null = null
-  private centerLabel: Text | null = null   // ⏳ / idle label in center
-  private ringRoot: SceneObject | null = null // parent of genre items — hidden during generation
+  private centerLabel: Text | null = null
+  private centerLabelObj: SceneObject | null = null
+  private ringRoot: SceneObject | null = null
+  private generatingAngle: number = 0
 
   private pinchOrigin: vec3 = new vec3(0, 0, 0)
   private hoveredIndex: number = -1
@@ -142,7 +144,18 @@ export class RadialMenuController extends BaseScriptComponent {
     }
 
     if (!this.isMenuOpen || !this.menuRoot) return
-    if (this.isGenerating) return  // no hover tracking during generation
+
+    if (this.isGenerating) {
+      // Rotate the ⏳ icon
+      if (this.centerLabelObj) {
+        this.generatingAngle += getDeltaTime() * 120 // degrees per second
+        const rad = (this.generatingAngle * Math.PI) / 180
+        const s = Math.sin(rad * 0.5)
+        const c = Math.cos(rad * 0.5)
+        this.centerLabelObj.getTransform().setLocalRotation(new quat(c, 0, 0, s))
+      }
+      return
+    }
 
     const tipPos = this.rightHand.indexTip.position
     let newHover = -1
@@ -221,10 +234,8 @@ export class RadialMenuController extends BaseScriptComponent {
     this.itemTexts = []
     this.itemUnderlines = []
     this.ringRoot = null
+    this.generatingAngle = 0
 
-    this.buildCenterSphere()
-
-    // Center label: ⏳
     const labelObj = global.scene.createSceneObject("RadialMenu_GenLabel")
     labelObj.setParent(this.menuRoot)
     labelObj.getTransform().setLocalPosition(new vec3(0, 0, 0))
@@ -234,6 +245,7 @@ export class RadialMenuController extends BaseScriptComponent {
     this.centerLabel.horizontalAlignment = HorizontalAlignment.Center
     this.centerLabel.verticalAlignment = VerticalAlignment.Center
     this.centerLabel.textFill.color = new vec4(1, 1, 1, 1)
+    this.centerLabelObj = labelObj
   }
 
   private buildErrorMenu(): void {
@@ -280,6 +292,7 @@ export class RadialMenuController extends BaseScriptComponent {
     this.itemUnderlines = []
     this.sphereMaterial = null
     this.centerLabel = null
+    this.centerLabelObj = null
     this.hoveredIndex = -1
   }
 

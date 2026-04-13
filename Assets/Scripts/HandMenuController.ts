@@ -3,7 +3,8 @@ import TrackedHand from "SpectaclesInteractionKit.lspkg/Providers/HandInputData/
 import { LyriaMusicController } from "./LyriaMusicController"
 
 const FACING_ANGLE_THRESHOLD = 40 // degrees; palm faces camera when angle < this
-const SIDE_OFFSET = 5 // cm; offset to the side of the hand for menu placement
+const SIDE_OFFSET = 5.5 // cm; offset to the side of the hand for menu placement
+const DOWN_OFFSET = 0.5 // cm; downward offset
 const BUTTON_PROXIMITY_CM = 2.0 // cm; distance threshold for touch interaction
 
 @component
@@ -76,7 +77,7 @@ export class HandMenuController extends BaseScriptComponent {
     // 3. Play/Pause button
     this.playPauseObj = global.scene.createSceneObject("HandMenu_PlayPause")
     this.playPauseObj.setParent(this.menuRoot)
-    this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -1, 0))
+    this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -1.25, 0))
     this.playPauseObj.getTransform().setLocalScale(new vec3(2, 2, 2))
 
     if (this.playIconMaterial || this.pauseIconMaterial) {
@@ -117,7 +118,8 @@ export class HandMenuController extends BaseScriptComponent {
     if (!this.leftHand || !this.menuRoot) return
     const pinkyPos = this.leftHand.pinkyKnuckle.position
     const indexRight = this.leftHand.indexKnuckle.right
-    const menuPos = pinkyPos.add(indexRight.uniformScale(SIDE_OFFSET))
+    const worldDown = new vec3(0, -1, 0)
+    const menuPos = pinkyPos.add(indexRight.uniformScale(SIDE_OFFSET)).add(worldDown.uniformScale(DOWN_OFFSET))
     this.menuRoot.getTransform().setWorldPosition(menuPos)
     this.menuRoot.getTransform().setWorldRotation(this.leftHand.indexKnuckle.rotation)
   }
