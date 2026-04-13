@@ -28,7 +28,6 @@
   ScriptInputsHidden:
     centerSpherePrefab: false
     lyriaMusicController: false
-    statusText: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -39,12 +38,10 @@
     []
   DefaultScriptInputs:
     - lyriaMusicController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       centerSpherePrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
     - // @input AssignableType lyriaMusicController
-    - // @input Component.Text statusText
     - '// @input Asset.ObjectPrefab centerSpherePrefab {"hint":"Drag in a Sphere prefab for the center dot indicator"}'

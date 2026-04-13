@@ -1,9 +1,13 @@
 CollapsedEntities:
   type: stringset
   value:
-    size: 680
+    size: 695
     values:
       - Audio Output.audioOutput
+      - Echopark.hdr
+      - Image.mat
+      - Images/pause.png
+      - Images/play-button.png
       - Material/Base.png
       - Material/Image 2.mat
       - Material/Image.mat
@@ -11,9 +15,16 @@ CollapsedEntities:
       - Material/MaterialParams.png
       - Material/Normal.png
       - Material/PBR.mat
+      - Material/PauseMaterial.mat
+      - Material/PlayMaterial.mat
       - Material/flat.ss_graph
       - Material/pbr.ss_graph
+      - PBR 2.mat
+      - PBR 3.mat
+      - PBR.mat
       - Plane.mesh
+      - Prefabs
+      - Prefabs/Sphere.prefab
       - RemoteServiceGateway.lspkg
       - RemoteServiceGateway.lspkg/Helpers
       - RemoteServiceGateway.lspkg/Helpers/AudioProcessor.ts
@@ -87,10 +98,11 @@ CollapsedEntities:
       - RemoteServiceGateway.lspkg/Utils/Promisfy.ts
       - RemoteServiceGateway.lspkg/package.native
       - RemoteServiceGateway.lspkg/package_dependencies.json
+      - Scene.scene
       - Scripts
-      - Scripts/AudioStreamPlayer.ts
       - Scripts/CameraFeedController.ts
       - Scripts/CameraFrameCapture.ts
+      - Scripts/HandMenuController.ts
       - Scripts/LyriaMusicController.ts
       - Scripts/RadialMenuController.ts
       - SnapDecorators.lspkg
@@ -666,6 +678,8 @@ CollapsedEntities:
       - SpectaclesUIKit.lspkg/Textures/test-image.jpg
       - SpectaclesUIKit.lspkg/package.native
       - SpectaclesUIKit.lspkg/package_dependencies.json
+      - Sphere.mesh
+      - Unlit.mat
       - Untitled TypeScript 2.ts
       - Untitled TypeScript 3.ts
       - Untitled TypeScript.ts
@@ -683,4 +697,5 @@ CollapsedEntities:
       - Utilities.lspkg/Scripts/Utils/TypeConversionUtils.ts
       - Utilities.lspkg/Scripts/Utils/ValidationUtils.ts
       - Utilities.lspkg/package.native
+      - unlit.ss_graph
   options: 4

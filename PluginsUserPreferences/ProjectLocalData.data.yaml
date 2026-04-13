@@ -3,14 +3,19 @@ data:
     - 0963ea37-35ed-46f4-bf04-5c65636e40ef: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/TypeScript/Resources/Untitled TypeScript.ts
     - 12247e6c-db91-4134-9de9-05ee902dafbd: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/Resources/Normal.png
     - 17cfe969-493e-4f8a-a521-e2cd6755d686: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/PBRMaterial/Resources/pbr.ss_graph
+    - 254ffb51-29c2-4f8a-b7a2-c69f0120fff0: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/UnlitMaterial/Resources/unlit.ss_graph
+    - 29126809-5852-4dca-97f9-f7cf65b3a939: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/Meshes/Resources/Sphere.mesh
     - 29ba4117-1288-4d5b-b62c-5ac47ab49d8f: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/TypeScript/Resources/Untitled TypeScript.ts
     - 4be21ed7-381f-43b3-8ba2-4ba699250100: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/Resources/MaterialParams.png
+    - 51feeac1-7051-450b-88dc-5ade93d9a671: /Users/nigelhartman/Downloads/play-button.png
     - 62c040a9-37c6-4705-ab57-fa94f8d03429: /Users/nigelhartman/Library/Preferences/Snap/Lens Studio/LibraryComponents/SnapDecorators@1.0.0/SnapDecorators.lspkg
+    - 6bda09bd-4e67-465b-ba53-56092b18f56a: /Users/nigelhartman/Downloads/pause.png
     - 78352e81-0cb5-4a13-8ac7-a8143cc55249: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/Meshes/Resources/Plane.mesh
     - 88e74ea2-bc73-495b-b693-3287234c078f: /Users/nigelhartman/Library/Preferences/Snap/Lens Studio/LibraryComponents/RemoteServiceGateway@0.1.10/RemoteServiceGateway.lspkg
     - b0ed44bb-3995-49cd-b540-ab0129212bec: /Users/nigelhartman/Library/Preferences/Snap/Lens Studio/LibraryComponents/SpectaclesUIKit@0.1.5/SpectaclesUIKit.lspkg
     - d4a9de8c-677b-4f44-9fec-b15d3a59fad6: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/TypeScript/Resources/Untitled TypeScript.ts
     - e29dfa6e-81c7-4560-9391-1f9c58ec241e: /Users/nigelhartman/Library/Preferences/Snap/Lens Studio/LibraryComponents/Utilities@1.0.0/Utilities.lspkg
+    - e79fa7ea-4561-4a72-bc1a-9e2bd5c5f0a0: /Users/nigelhartman/Downloads/previous-track.png
     - eb26d400-a041-412a-974c-617ab2ec8ee7: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/Resources/Base.png
     - fa45e690-a13a-473e-80e1-907dcd1bd7f6: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/Resources/flat.ss_graph
     - fefc2b57-83d8-4971-b569-5bfefe2cbde3: /Applications/Lens Studio.app/Contents/JsPlugins/PresetsRegistry/Assets/ImageMaterial/Resources/Image.png
