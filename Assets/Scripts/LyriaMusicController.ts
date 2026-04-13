@@ -112,11 +112,18 @@ export class LyriaMusicController extends BaseScriptComponent {
     this.remoteMediaModule.loadResourceAsAudioTrackAsset(
       resource,
       (track: AudioTrackAsset) => {
-        print("[LyriaMusicController] Audio loaded, playing")
+        print("[LyriaMusicController] track loaded, assigning and scheduling play")
         this.audioComponent.audioTrack = track
-        this.audioComponent.play(1)
         this.isGenerating = false
         this.connected = true
+        // Defer play by one frame so the audio engine can initialize the track
+        const ev = this.createEvent("DelayedCallbackEvent")
+        ev.bind(() => {
+          print("[LyriaMusicController] deferred play — isPlaying before: " + this.audioComponent.isPlaying())
+          this.audioComponent.play(1)
+          print("[LyriaMusicController] deferred play — isPlaying after: " + this.audioComponent.isPlaying())
+        })
+        ev.reset(0.1)
       },
       (err: string) => {
         print("[LyriaMusicController] Audio load failed: " + err)
