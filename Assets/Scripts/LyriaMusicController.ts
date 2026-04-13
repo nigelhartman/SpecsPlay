@@ -11,12 +11,12 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   @input audioStreamPlayer: AudioStreamPlayer
   @input cameraFeedController: CameraFeedController
-  @input statusText: Text
 
   // ── Public state ────────────────────────────────────────────────────────────
 
   public songId: number = 0       // increments each time a new song starts generating
   public get generating(): boolean { return this.isGenerating }
+  public get isConnected(): boolean { return this.connected }
   public albumArtTexture: Texture | null = null
 
   // ── Private state ───────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ export class LyriaMusicController extends BaseScriptComponent {
   private internetModule: InternetModule = require("LensStudio:InternetModule")
   private socket: WebSocket | null = null
   private isGenerating: boolean = false
+  private connected: boolean = false
   private lastFrameBase64: string = ""
   private lastCacheTime: number = 0
   private isCaching: boolean = false
@@ -74,12 +75,11 @@ export class LyriaMusicController extends BaseScriptComponent {
   private connect(): void {
     if (!this.backendUrl) return
 
-    this.setStatus("Connecting...")
     this.socket = this.internetModule.createWebSocket(this.backendUrl)
 
     this.socket.onopen = () => {
       print("[LyriaMusicController] Connected")
-      this.setStatus("Pinch to pick genre")
+      this.connected = true
     }
 
     this.socket.onmessage = (event: WebSocketMessageEvent) => {
@@ -91,13 +91,13 @@ export class LyriaMusicController extends BaseScriptComponent {
         try {
           const msg = JSON.parse(event.data as string)
           if (msg.type === "status") {
-            if (msg.state === "generating") this.setStatus("Generating...")
-            else if (msg.state === "done") {
+            if (msg.state === "generating") {
+              // generating state already tracked via isGenerating
+            } else if (msg.state === "done") {
               this.isGenerating = false
-              this.setStatus("Playing — pinch to change")
+              print("[LyriaMusicController] Generation done")
             } else if (msg.state === "error") {
               this.isGenerating = false
-              this.setStatus("Error")
               print("[LyriaMusicController] Error: " + (msg.message ?? "unknown"))
             }
           }
@@ -108,13 +108,13 @@ export class LyriaMusicController extends BaseScriptComponent {
     this.socket.onclose = () => {
       print("[LyriaMusicController] Disconnected")
       this.isGenerating = false
-      this.setStatus("Disconnected")
+      this.connected = false
     }
 
     this.socket.onerror = (_event: WebSocketEvent) => {
       print("[LyriaMusicController] WebSocket error")
       this.isGenerating = false
-      this.setStatus("Connection error")
+      this.connected = false
     }
   }
 
@@ -143,17 +143,15 @@ export class LyriaMusicController extends BaseScriptComponent {
     const texture = this.cameraFeedController?.cameraTexture
     if (!texture) {
       this.isGenerating = false
-      this.setStatus("No camera")
       return
     }
 
-    this.setStatus("Capturing...")
     Base64.encodeTextureAsync(
       texture,
       (base64: string) => this.sendGenerate(genre, base64),
       () => {
         this.isGenerating = false
-        this.setStatus("Capture failed")
+        print("[LyriaMusicController] Capture failed")
       },
       CompressionQuality.LowQuality,
       EncodingType.Jpg
@@ -162,18 +160,11 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   private sendGenerate(genre: string, imageBase64: string): void {
     this.songId++
-    this.setStatus("Generating " + genre + "...")
     this.socket.send(JSON.stringify({ type: "generate", imageBase64, style: genre }))
     Base64.decodeTextureAsync(
       imageBase64,
       (tex: Texture) => { this.albumArtTexture = tex },
       () => { print("[LyriaMusicController] Failed to decode album art texture") }
     )
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-
-  private setStatus(msg: string): void {
-    if (this.statusText) this.statusText.text = msg
   }
 }
