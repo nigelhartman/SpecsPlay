@@ -7,10 +7,12 @@
  *                  → { url: "https://BASE_URL/audio/uuid.mp3" }
  *
  * GET  /audio/:id  → streams the MP3 file
+ * GET  /health     → "ok"
  *
  * .env (parent dir):
- *   GEMINI_API_KEY=...
- *   BASE_URL=https://xxxx.ngrok-free.app   ← update each ngrok session
+ *   OPENROUTER_API_KEY=...   ← preferred if present
+ *   GEMINI_API_KEY=...       ← fallback
+ *   BASE_URL=https://xxxx.ngrok-free.app
  */
 
 "use strict"
@@ -23,24 +25,33 @@ const { GoogleGenAI } = require("@google/genai")
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const PORT       = process.env.PORT     ? parseInt(process.env.PORT) : 3000
-const BASE_URL   = (process.env.BASE_URL ?? `http://localhost:${PORT}`).replace(/\/$/, "")
-const API_KEY    = process.env.GEMINI_API_KEY ?? ""
-const MODEL      = "lyria-3-clip-preview"
-const AUDIO_DIR  = path.join(__dirname, "tmp_audio")
-const FILE_TTL   = 10 * 60 * 1000  // 10 minutes
+const PORT             = process.env.PORT ? parseInt(process.env.PORT) : 3000
+const BASE_URL         = (process.env.BASE_URL ?? `http://localhost:${PORT}`).replace(/\/$/, "")
+const OPENROUTER_KEY   = process.env.OPENROUTER_API_KEY ?? ""
+const GEMINI_KEY       = process.env.GEMINI_API_KEY ?? ""
+const MODEL            = "lyria-3-clip-preview"
+const AUDIO_DIR        = path.join(__dirname, "tmp_audio")
+const FILE_TTL         = 10 * 60 * 1000  // 10 minutes
+
+// OpenRouter uses the full model path
+const OPENROUTER_MODEL = "google/lyria-3-clip-preview"
+const OPENROUTER_URL   = "https://openrouter.ai/api/v1/chat/completions"
 
 const STYLE_PROMPTS = {
   kpop:       "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat, lyrics mixing English and Korean",
   rock:       "energetic rock song with electric guitar riffs, powerful drums, and driving rhythm",
   hiphop:     "hip-hop track with heavy bass, rhythmic beats, and urban atmosphere",
-  jazz:       "smooth jazz with expressive saxophone, walking bass, and brushed drums",
-  classical:  "orchestral classical piece with strings, piano, and rich harmonic progressions",
-  electronic: "atmospheric electronic music with synthesizer pads, evolving textures, and subtle rhythms",
+  jazz:       "smooth jazz with expressive saxophone, walking bass, and brushed drums, include sung or spoken vocal lyrics",
+  classical:  "orchestral classical piece with strings, piano, and rich harmonic progressions, include a sung vocal melody with lyrics",
+  electronic: "atmospheric electronic music with synthesizer pads, evolving textures, and subtle rhythms, include sung or spoken lyrics",
 }
 
-if (!API_KEY) {
-  console.error("[server] FATAL: GEMINI_API_KEY not set")
+// ── Determine which backend to use ───────────────────────────────────────────
+
+const USE_OPENROUTER = !!OPENROUTER_KEY
+
+if (!OPENROUTER_KEY && !GEMINI_KEY) {
+  console.error("[server] FATAL: neither OPENROUTER_API_KEY nor GEMINI_API_KEY is set")
   process.exit(1)
 }
 if (!process.env.BASE_URL) {
@@ -61,18 +72,73 @@ setInterval(() => {
   }
 }, 60_000)
 
-// ── Gemini client ─────────────────────────────────────────────────────────────
+// ── Generation ────────────────────────────────────────────────────────────────
 
-const ai = new GoogleGenAI({ apiKey: API_KEY })
+const geminiAi = GEMINI_KEY ? new GoogleGenAI({ apiKey: GEMINI_KEY }) : null
 
 async function generateMp3(style, imageBase64) {
   const stylePrompt = STYLE_PROMPTS[style] ?? STYLE_PROMPTS.kpop
-  const parts = [{ text: `Generate a ${stylePrompt} inspired by this scene.` }]
+  const prompt = `Generate a ${stylePrompt} inspired by this scene.`
+
+  if (USE_OPENROUTER) {
+    return generateMp3OpenRouter(prompt, imageBase64)
+  } else {
+    return generateMp3Gemini(prompt, imageBase64)
+  }
+}
+
+async function generateMp3OpenRouter(prompt, imageBase64) {
+  const contentParts = [{ type: "text", text: prompt }]
+  if (imageBase64) {
+    contentParts.push({
+      type: "image_url",
+      image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+    })
+  }
+
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      modalities: ["audio"],
+      messages: [{ role: "user", content: contentParts }],
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`OpenRouter ${response.status}: ${text}`)
+  }
+
+  const json = await response.json()
+  for (const choice of json.choices ?? []) {
+    const parts = choice.message?.content
+    if (Array.isArray(parts)) {
+      for (const part of parts) {
+        if (part.type === "input_audio" && part.input_audio?.data) {
+          return Buffer.from(part.input_audio.data, "base64")
+        }
+      }
+    }
+    // Some providers return audio directly in audio field
+    if (choice.message?.audio?.data) {
+      return Buffer.from(choice.message.audio.data, "base64")
+    }
+  }
+  throw new Error("No audio in OpenRouter response")
+}
+
+async function generateMp3Gemini(prompt, imageBase64) {
+  const parts = [{ text: prompt }]
   if (imageBase64) {
     parts.push({ inlineData: { mimeType: "image/jpeg", data: imageBase64 } })
   }
 
-  const response = await ai.models.generateContent({
+  const response = await geminiAi.models.generateContent({
     model: MODEL,
     contents: parts,
     config: { responseModalities: ["AUDIO"] },
@@ -157,7 +223,11 @@ const server = http.createServer((req, res) => {
 })
 
 server.listen(PORT, () => {
+  const backend = USE_OPENROUTER
+    ? `OpenRouter (${OPENROUTER_MODEL})`
+    : `Gemini API (${MODEL})`
   console.log(`[server] Listening on http://localhost:${PORT}`)
+  console.log(`[server] Using: ${backend}`)
   console.log(`[server] Run:  ngrok http ${PORT}`)
-  console.log(`[server] Then: set BASE_URL=https://xxxx.ngrok-free.app in .env and backendUrl in Inspector`)
+  console.log(`[server] Then: set BASE_URL=https://xxxx.ngrok-free.app in .env`)
 })
