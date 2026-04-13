@@ -56,7 +56,7 @@ export class LyriaMusicController extends BaseScriptComponent {
     }
 
     this.isGenerating = true
-    if (this.audioComponent) this.audioComponent.stop(false)
+    if (this.audioComponent?.audioTrack) this.audioComponent.stop(false)
 
     const imageBase64 = this.lastFrameBase64
     this.captureAlbumArt(imageBase64)
