@@ -43,11 +43,7 @@ export class LyriaMusicController extends BaseScriptComponent {
         return
       }
       this.checkConnection()
-      // Poll health every 5s + cache frames every 3s
-      this.createEvent("UpdateEvent").bind(() => {
-        this.cacheFrame()
-        this.pollHealth()
-      })
+      this.createEvent("UpdateEvent").bind(() => this.cacheFrame())
     })
   }
 
@@ -70,23 +66,18 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   // ── Connection check ────────────────────────────────────────────────────────
 
-  private lastHealthCheckTime: number = -999
-
-  private checkConnection(): void {
-    this.lastHealthCheckTime = getTime()
+  /** Async — resolves once the check completes and updates this.connected */
+  public checkConnection(): Promise<boolean> {
     const req = new Request(this.backendUrl + "/health", { method: "GET" })
-    this.internetModule.fetch(req, {}).then(() => {
-      this.connected = true
-      print("[LyriaMusicController] Connected")
+    return this.internetModule.fetch(req, {}).then((res) => {
+      this.connected = res.status === 200
+      print("[LyriaMusicController] Health: " + res.status + " → connected=" + this.connected)
+      return this.connected
     }).catch(() => {
       this.connected = false
       print("[LyriaMusicController] Cannot reach backend")
+      return false
     })
-  }
-
-  private pollHealth(): void {
-    if (getTime() - this.lastHealthCheckTime < 5) return
-    this.checkConnection()
   }
 
   // ── HTTP generation ─────────────────────────────────────────────────────────
