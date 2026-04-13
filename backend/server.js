@@ -105,6 +105,7 @@ async function generateMp3OpenRouter(prompt, imageBase64) {
     body: JSON.stringify({
       model: OPENROUTER_MODEL,
       modalities: ["audio"],
+      stream: true,
       messages: [{ role: "user", content: contentParts }],
     }),
   })
@@ -114,22 +115,38 @@ async function generateMp3OpenRouter(prompt, imageBase64) {
     throw new Error(`OpenRouter ${response.status}: ${text}`)
   }
 
-  const json = await response.json()
-  for (const choice of json.choices ?? []) {
-    const parts = choice.message?.content
-    if (Array.isArray(parts)) {
-      for (const part of parts) {
-        if (part.type === "input_audio" && part.input_audio?.data) {
-          return Buffer.from(part.input_audio.data, "base64")
+  // Collect SSE stream and reassemble base64 audio chunks
+  const text = await response.text()
+  let audioBase64 = ""
+
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("data: ")) continue
+    const payload = line.slice(6).trim()
+    if (payload === "[DONE]") break
+    let chunk
+    try { chunk = JSON.parse(payload) } catch { continue }
+
+    for (const choice of chunk.choices ?? []) {
+      // content may be a string delta or array of parts
+      const delta = choice.delta
+      if (!delta) continue
+
+      if (typeof delta.content === "string") {
+        audioBase64 += delta.content
+      } else if (Array.isArray(delta.content)) {
+        for (const part of delta.content) {
+          if (part.type === "input_audio" && part.input_audio?.data) {
+            audioBase64 += part.input_audio.data
+          }
         }
       }
-    }
-    // Some providers return audio directly in audio field
-    if (choice.message?.audio?.data) {
-      return Buffer.from(choice.message.audio.data, "base64")
+      // Some providers put audio in delta.audio
+      if (delta.audio?.data) audioBase64 += delta.audio.data
     }
   }
-  throw new Error("No audio in OpenRouter response")
+
+  if (!audioBase64) throw new Error("No audio in OpenRouter stream response")
+  return Buffer.from(audioBase64, "base64")
 }
 
 async function generateMp3Gemini(prompt, imageBase64) {
