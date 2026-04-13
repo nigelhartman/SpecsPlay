@@ -41,6 +41,7 @@ export class HandMenuController extends BaseScriptComponent {
 
   private wasNearPlayButton: boolean = false
   private wasNearRestartButton: boolean = false
+  private trackEndedAndReset: boolean = false
 
   onAwake(): void {
     this.createEvent("OnStartEvent").bind(() => {
@@ -150,6 +151,7 @@ export class HandMenuController extends BaseScriptComponent {
     const songId = this.lyriaMusicController.songId
     if (songId === this.lastSongId) return
     this.lastSongId = songId
+    this.trackEndedAndReset = false  // new song — allow end-detection again
     const tex = this.lyriaMusicController.albumArtTexture
     if (tex && this.albumArtImage?.mainMaterial?.mainPass) {
       this.albumArtImage.mainMaterial.mainPass.baseTex = tex
@@ -181,15 +183,18 @@ export class HandMenuController extends BaseScriptComponent {
   }
 
   private checkTrackFinished(): void {
+    if (this.trackEndedAndReset) return
+    if (this.lyriaMusicController.generating) return
     const audio = this.lyriaMusicController.audioComponent
     if (!audio?.audioTrack) return
     if (audio.isPlaying()) return
     const dur = audio.duration
     if (dur > 0 && audio.position >= dur - 0.1) {
-      // Track ended — reset to beginning so user can play again
+      // Track ended — reset to beginning once so user can play again
       audio.stop(false)
       audio.play(1)
       audio.pause()
+      this.trackEndedAndReset = true
     }
   }
 
