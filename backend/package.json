@@ -1,15 +1,14 @@
 {
   "name": "lyria-vision-proxy",
-  "version": "1.0.0",
-  "description": "WebSocket proxy: receives camera frames from Spectacles, runs Gemini Vision, steers Lyria Realtime, streams PCM audio back",
+  "version": "2.0.0",
+  "description": "HTTP server: receives camera frame + genre from Spectacles, calls Lyria REST API, returns MP3 URL",
   "main": "server.js",
   "scripts": {
     "start": "node --env-file=../.env server.js",
     "dev": "node --env-file=../.env --watch server.js"
   },
   "dependencies": {
-    "@google/genai": "^1.0.0",
-    "ws": "^8.18.0"
+    "@google/genai": "^1.0.0"
   },
   "engines": {
     "node": ">=20"
