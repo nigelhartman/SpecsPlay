@@ -56,7 +56,7 @@ export class LyriaMusicController extends BaseScriptComponent {
     }
 
     this.isGenerating = true
-    if (this.audioComponent?.isPlaying()) this.audioComponent.stop(false)
+    if (this.audioComponent) this.audioComponent.stop(false)
 
     const imageBase64 = this.lastFrameBase64
     this.captureAlbumArt(imageBase64)
@@ -113,9 +113,6 @@ export class LyriaMusicController extends BaseScriptComponent {
       resource,
       (track: AudioTrackAsset) => {
         print("[LyriaMusicController] Audio loaded, playing")
-        // Stop and clear previous track before assigning new one
-        if (this.audioComponent.isPlaying()) this.audioComponent.stop(false)
-        this.audioComponent.audioTrack = null
         this.audioComponent.audioTrack = track
         this.audioComponent.play(1)
         this.isGenerating = false
