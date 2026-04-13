@@ -21,6 +21,7 @@ const http = require("http")
 const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
+const { spawn } = require("child_process")
 const { GoogleGenAI } = require("@google/genai")
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -49,10 +50,17 @@ const STYLE_PROMPTS = {
 // ── Determine which backend to use ───────────────────────────────────────────
 
 const USE_OPENROUTER = !!OPENROUTER_KEY
+const SECRET_KEY     = process.env.SECRET_KEY ?? ""
+const SONG_LIMIT     = 100
+
+let songCount = 0
 
 if (!OPENROUTER_KEY && !GEMINI_KEY) {
   console.error("[server] FATAL: neither OPENROUTER_API_KEY nor GEMINI_API_KEY is set")
   process.exit(1)
+}
+if (!SECRET_KEY) {
+  console.warn("[server] WARN: SECRET_KEY not set — all requests will be accepted without auth")
 }
 if (!process.env.BASE_URL) {
   console.warn("[server] WARN: BASE_URL not set — audio URLs will use localhost, Spectacles won't reach them")
@@ -71,6 +79,33 @@ setInterval(() => {
     } catch {}
   }
 }, 60_000)
+
+// ── PCM → MP3 conversion ──────────────────────────────────────────────────────
+
+function pcmToMp3(pcmBuffer) {
+  return new Promise((resolve, reject) => {
+    const ff = spawn("ffmpeg", [
+      "-f", "s16le",          // signed 16-bit little-endian PCM
+      "-ar", "48000",         // Lyria sample rate
+      "-ac", "2",             // stereo
+      "-i", "pipe:0",
+      "-codec:a", "libmp3lame",
+      "-q:a", "2",
+      "-f", "mp3",
+      "pipe:1",
+    ])
+    const chunks = []
+    ff.stdout.on("data", c => chunks.push(c))
+    ff.stderr.on("data", () => {})  // suppress ffmpeg logs
+    ff.on("close", code => {
+      if (code === 0) resolve(Buffer.concat(chunks))
+      else reject(new Error(`ffmpeg exited with code ${code}`))
+    })
+    ff.on("error", reject)
+    ff.stdin.write(pcmBuffer)
+    ff.stdin.end()
+  })
+}
 
 // ── Generation ────────────────────────────────────────────────────────────────
 
@@ -146,7 +181,8 @@ async function generateMp3OpenRouter(prompt, imageBase64) {
   }
 
   if (!audioBase64) throw new Error("No audio in OpenRouter stream response")
-  return Buffer.from(audioBase64, "base64")
+  const pcm = Buffer.from(audioBase64, "base64")
+  return pcmToMp3(pcm)
 }
 
 async function generateMp3Gemini(prompt, imageBase64) {
@@ -192,16 +228,31 @@ const server = http.createServer((req, res) => {
     let body = ""
     req.on("data", chunk => body += chunk)
     req.on("end", async () => {
-      let style, imageBase64
+      let style, imageBase64, secretKey
       try {
-        ;({ style, imageBase64 } = JSON.parse(body))
+        ;({ style, imageBase64, secretKey } = JSON.parse(body))
       } catch {
         res.writeHead(400, { "Content-Type": "application/json" })
         res.end(JSON.stringify({ error: "Invalid JSON" }))
         return
       }
 
-      console.log(`[server] Generating ${style}...`)
+      if (SECRET_KEY && secretKey !== SECRET_KEY) {
+        console.warn("[server] Rejected: invalid secret key")
+        res.writeHead(403, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Forbidden" }))
+        return
+      }
+
+      if (songCount >= SONG_LIMIT) {
+        console.warn(`[server] Rejected: song limit of ${SONG_LIMIT} reached`)
+        res.writeHead(429, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: `Song limit of ${SONG_LIMIT} reached. Restart the server to reset.` }))
+        return
+      }
+
+      songCount++
+      console.log(`[server] Generating ${style}... (${songCount}/${SONG_LIMIT})`)
       try {
         const mp3 = await generateMp3(style, imageBase64)
         const filename = crypto.randomUUID() + ".mp3"

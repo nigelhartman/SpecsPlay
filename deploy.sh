@@ -7,6 +7,11 @@ REMOTE_DIR="/opt/specsplay"
 
 echo "==> Deploying to $SERVER..."
 
+# Start ssh-agent and add key once so passphrase is only prompted once
+eval "$(ssh-agent -s)" > /dev/null
+ssh-add "$SSH_KEY"
+trap "ssh-agent -k > /dev/null" EXIT
+
 # Load local .env to get API keys
 if [ ! -f "$(dirname "$0")/.env" ]; then
   echo "ERROR: .env file not found at project root"

@@ -8,6 +8,10 @@ export class LyriaMusicController extends BaseScriptComponent {
   @hint("Backend URL — e.g. https://specsplay.functionforest.com")
   backendUrl: string = "https://specsplay.functionforest.com"
 
+  @input
+  @hint("Must match SECRET_KEY on the server — leave blank if server has no key set")
+  secretKey: string = ""
+
   @input cameraFeedController: CameraFeedController
 
   @input
@@ -87,7 +91,7 @@ export class LyriaMusicController extends BaseScriptComponent {
     const req = new Request(this.backendUrl + "/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style: genre, imageBase64 }),
+      body: JSON.stringify({ style: genre, imageBase64, secretKey: this.secretKey }),
     })
 
     this.internetModule.fetch(req, {}).then((response) => {
@@ -142,8 +146,8 @@ export class LyriaMusicController extends BaseScriptComponent {
     const now = getTime()
     if (now - this.lastCacheTime < 3) return
 
-    const texture = this.cameraFeedController?.cameraTexture
-    if (!texture) return
+    if (!this.cameraFeedController?.hasFrame) return
+    const texture = this.cameraFeedController.cameraTexture
 
     this.isCaching = true
     this.lastCacheTime = now
