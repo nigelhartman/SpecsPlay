@@ -257,15 +257,25 @@ export class RadialMenuController extends BaseScriptComponent {
     this.itemUnderlines = []
     this.ringRoot = null
 
-    const labelObj = global.scene.createSceneObject("RadialMenu_ErrorLabel")
-    labelObj.setParent(this.menuRoot)
-    labelObj.getTransform().setLocalPosition(new vec3(0, 0, 0))
-    labelObj.getTransform().setLocalScale(new vec3(2, 2, 2))
-    const errText = labelObj.createComponent("Component.Text") as Text
-    errText.text = "✕"
-    errText.horizontalAlignment = HorizontalAlignment.Center
-    errText.verticalAlignment = VerticalAlignment.Center
-    errText.textFill.color = new vec4(1, 0.2, 0.2, 1)
+    const iconObj = global.scene.createSceneObject("RadialMenu_ErrorIcon")
+    iconObj.setParent(this.menuRoot)
+    iconObj.getTransform().setLocalPosition(new vec3(0, 1.5, 0))
+    iconObj.getTransform().setLocalScale(new vec3(2, 2, 2))
+    const errIcon = iconObj.createComponent("Component.Text") as Text
+    errIcon.text = "✕"
+    errIcon.horizontalAlignment = HorizontalAlignment.Center
+    errIcon.verticalAlignment = VerticalAlignment.Center
+    errIcon.textFill.color = new vec4(1, 0.2, 0.2, 1)
+
+    const msgObj = global.scene.createSceneObject("RadialMenu_ErrorMsg")
+    msgObj.setParent(this.menuRoot)
+    msgObj.getTransform().setLocalPosition(new vec3(0, -1.5, 0))
+    msgObj.getTransform().setLocalScale(new vec3(0.9, 0.9, 0.9))
+    const errMsg = msgObj.createComponent("Component.Text") as Text
+    errMsg.text = "Server not reachable"
+    errMsg.horizontalAlignment = HorizontalAlignment.Center
+    errMsg.verticalAlignment = VerticalAlignment.Center
+    errMsg.textFill.color = new vec4(1, 0.2, 0.2, 1)
 
     // Auto-dismiss the error menu on pinch-up (handled in closeMenu which returns early only during isGenerating)
   }
