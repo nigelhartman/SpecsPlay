@@ -29,7 +29,7 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   private internetModule: InternetModule = require("LensStudio:InternetModule")
   private isGenerating: boolean = false
-  private connected: boolean = true  // optimistic — set false only on confirmed failure
+  private connected: boolean = false
   private lastFrameBase64: string = ""
   private lastCacheTime: number = 0
   private isCaching: boolean = false
@@ -42,10 +42,12 @@ export class LyriaMusicController extends BaseScriptComponent {
         print("[LyriaMusicController] ERROR: backendUrl is not set in Inspector")
         return
       }
-      // Probe connectivity with a HEAD-like request
       this.checkConnection()
-      // Continuously cache latest camera frame so generation is instant
-      this.createEvent("UpdateEvent").bind(() => this.cacheFrame())
+      // Poll health every 5s + cache frames every 3s
+      this.createEvent("UpdateEvent").bind(() => {
+        this.cacheFrame()
+        this.pollHealth()
+      })
     })
   }
 
@@ -68,7 +70,10 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   // ── Connection check ────────────────────────────────────────────────────────
 
+  private lastHealthCheckTime: number = -999
+
   private checkConnection(): void {
+    this.lastHealthCheckTime = getTime()
     const req = new Request(this.backendUrl + "/health", { method: "GET" })
     this.internetModule.fetch(req, {}).then(() => {
       this.connected = true
@@ -77,6 +82,11 @@ export class LyriaMusicController extends BaseScriptComponent {
       this.connected = false
       print("[LyriaMusicController] Cannot reach backend")
     })
+  }
+
+  private pollHealth(): void {
+    if (getTime() - this.lastHealthCheckTime < 5) return
+    this.checkConnection()
   }
 
   // ── HTTP generation ─────────────────────────────────────────────────────────
