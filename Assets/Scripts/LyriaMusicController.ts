@@ -1,4 +1,3 @@
-import { AudioStreamPlayer } from "./AudioStreamPlayer"
 import { CameraFeedController } from "./CameraFeedController"
 
 @component
@@ -6,15 +5,22 @@ export class LyriaMusicController extends BaseScriptComponent {
   // ── Inspector inputs ────────────────────────────────────────────────────────
 
   @input
-  @hint("wss://xxxx.ngrok-free.app  (update each ngrok session)")
+  @hint("https://xxxx.ngrok-free.app  (update each ngrok session)")
   backendUrl: string = ""
 
-  @input audioStreamPlayer: AudioStreamPlayer
   @input cameraFeedController: CameraFeedController
+
+  @input
+  @hint("AudioComponent on any SceneObject — used to play the generated MP3")
+  audioComponent: AudioComponent
+
+  @input
+  @hint("RemoteMediaModule asset")
+  remoteMediaModule: RemoteMediaModule
 
   // ── Public state ────────────────────────────────────────────────────────────
 
-  public songId: number = 0       // increments each time a new song starts generating
+  public songId: number = 0
   public get generating(): boolean { return this.isGenerating }
   public get isConnected(): boolean { return this.connected }
   public albumArtTexture: Texture | null = null
@@ -22,7 +28,6 @@ export class LyriaMusicController extends BaseScriptComponent {
   // ── Private state ───────────────────────────────────────────────────────────
 
   private internetModule: InternetModule = require("LensStudio:InternetModule")
-  private socket: WebSocket | null = null
   private isGenerating: boolean = false
   private connected: boolean = false
   private lastFrameBase64: string = ""
@@ -35,87 +40,104 @@ export class LyriaMusicController extends BaseScriptComponent {
     this.createEvent("OnStartEvent").bind(() => {
       if (!this.backendUrl) {
         print("[LyriaMusicController] ERROR: backendUrl is not set in Inspector")
+        return
       }
-      // Continuously cache latest camera frame so menu selection is instant
+      // Probe connectivity with a HEAD-like request
+      this.checkConnection()
+      // Continuously cache latest camera frame so generation is instant
       this.createEvent("UpdateEvent").bind(() => this.cacheFrame())
-      this.connect()
     })
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  /** Called by RadialMenuController when the user selects a genre */
   public generateForGenre(genre: string): void {
     if (this.isGenerating) {
       print("[LyriaMusicController] Already generating, ignoring")
       return
     }
-    if (!this.socket) {
-      print("[LyriaMusicController] Not connected")
-      return
-    }
 
     this.isGenerating = true
-    this.audioStreamPlayer.stop()
+    if (this.audioComponent?.isPlaying()) this.audioComponent.stop(false)
 
-    if (this.lastFrameBase64) {
-      this.sendGenerate(genre, this.lastFrameBase64)
-    } else {
-      // Fallback: capture fresh frame
-      this.captureAndGenerate(genre)
-    }
+    const imageBase64 = this.lastFrameBase64
+    this.captureAlbumArt(imageBase64)
+
+    this.postGenerate(genre, imageBase64)
   }
 
-  /** Keep CameraFrameCapture compatible */
-  public isStreaming(): boolean { return false }
-  public sendFrame(_base64: string): void {}
+  // ── Connection check ────────────────────────────────────────────────────────
 
-  // ── WebSocket connection ────────────────────────────────────────────────────
-
-  private connect(): void {
-    if (!this.backendUrl) return
-
-    this.socket = this.internetModule.createWebSocket(this.backendUrl)
-
-    this.socket.onopen = () => {
-      print("[LyriaMusicController] Connected")
+  private checkConnection(): void {
+    const req = new Request(this.backendUrl + "/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ style: "ping", imageBase64: "" }),
+    })
+    this.internetModule.fetch(req, {}).then(() => {
       this.connected = true
-    }
+      print("[LyriaMusicController] Connected")
+    }).catch(() => {
+      this.connected = false
+      print("[LyriaMusicController] Cannot reach backend")
+    })
+  }
 
-    this.socket.onmessage = (event: WebSocketMessageEvent) => {
-      if (event.data instanceof Blob) {
-        event.data.bytes().then((bytes: Uint8Array) => {
-          this.audioStreamPlayer.addFrame(bytes)
-        })
-      } else {
-        try {
-          const msg = JSON.parse(event.data as string)
-          if (msg.type === "status") {
-            if (msg.state === "generating") {
-              // generating state already tracked via isGenerating
-            } else if (msg.state === "done") {
-              this.isGenerating = false
-              print("[LyriaMusicController] Generation done")
-            } else if (msg.state === "error") {
-              this.isGenerating = false
-              print("[LyriaMusicController] Error: " + (msg.message ?? "unknown"))
-            }
-          }
-        } catch (_) {}
+  // ── HTTP generation ─────────────────────────────────────────────────────────
+
+  private postGenerate(genre: string, imageBase64: string): void {
+    this.songId++
+    print("[LyriaMusicController] Generating " + genre + "...")
+
+    const req = new Request(this.backendUrl + "/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ style: genre, imageBase64 }),
+    })
+
+    this.internetModule.fetch(req, {}).then((response) => {
+      return response.json()
+    }).then((json: { url?: string; error?: string }) => {
+      if (!json.url) {
+        print("[LyriaMusicController] Error from server: " + (json.error ?? "no url"))
+        this.isGenerating = false
+        return
       }
-    }
-
-    this.socket.onclose = () => {
-      print("[LyriaMusicController] Disconnected")
+      this.loadAudio(json.url)
+    }).catch((err) => {
+      print("[LyriaMusicController] Fetch error: " + err)
       this.isGenerating = false
-      this.connected = false
-    }
+    })
+  }
 
-    this.socket.onerror = (_event: WebSocketEvent) => {
-      print("[LyriaMusicController] WebSocket error")
-      this.isGenerating = false
-      this.connected = false
-    }
+  private loadAudio(url: string): void {
+    print("[LyriaMusicController] Loading audio from " + url)
+    const resource = this.internetModule.makeResourceFromUrl(url)
+    this.remoteMediaModule.loadResourceAsAudioTrackAsset(
+      resource,
+      (track: AudioTrackAsset) => {
+        print("[LyriaMusicController] Audio loaded, playing")
+        this.audioComponent.audioTrack = track
+        this.audioComponent.play(1)
+        this.isGenerating = false
+        this.connected = true
+      },
+      (err: string) => {
+        print("[LyriaMusicController] Audio load failed: " + err)
+        this.isGenerating = false
+      }
+    )
+  }
+
+  // ── Album art ───────────────────────────────────────────────────────────────
+
+  private captureAlbumArt(imageBase64: string): void {
+    if (!imageBase64) return
+    Base64.decodeTextureAsync(
+      imageBase64,
+      (tex: Texture) => { this.albumArtTexture = tex },
+      () => { print("[LyriaMusicController] Failed to decode album art") }
+    )
   }
 
   // ── Frame caching ───────────────────────────────────────────────────────────
@@ -136,35 +158,6 @@ export class LyriaMusicController extends BaseScriptComponent {
       () => { this.isCaching = false },
       CompressionQuality.LowQuality,
       EncodingType.Jpg
-    )
-  }
-
-  private captureAndGenerate(genre: string): void {
-    const texture = this.cameraFeedController?.cameraTexture
-    if (!texture) {
-      this.isGenerating = false
-      return
-    }
-
-    Base64.encodeTextureAsync(
-      texture,
-      (base64: string) => this.sendGenerate(genre, base64),
-      () => {
-        this.isGenerating = false
-        print("[LyriaMusicController] Capture failed")
-      },
-      CompressionQuality.LowQuality,
-      EncodingType.Jpg
-    )
-  }
-
-  private sendGenerate(genre: string, imageBase64: string): void {
-    this.songId++
-    this.socket.send(JSON.stringify({ type: "generate", imageBase64, style: genre }))
-    Base64.decodeTextureAsync(
-      imageBase64,
-      (tex: Texture) => { this.albumArtTexture = tex },
-      () => { print("[LyriaMusicController] Failed to decode album art texture") }
     )
   }
 }

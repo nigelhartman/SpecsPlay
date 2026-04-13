@@ -1,7 +1,5 @@
 import { HandInputData } from "SpectaclesInteractionKit.lspkg/Providers/HandInputData/HandInputData"
 import TrackedHand from "SpectaclesInteractionKit.lspkg/Providers/HandInputData/TrackedHand"
-import WorldCameraFinderProvider from "SpectaclesInteractionKit.lspkg/Providers/CameraProvider/WorldCameraFinderProvider"
-import { AudioStreamPlayer } from "./AudioStreamPlayer"
 import { LyriaMusicController } from "./LyriaMusicController"
 
 const FACING_ANGLE_THRESHOLD = 40 // degrees; palm faces camera when angle < this
@@ -10,7 +8,6 @@ const BUTTON_PROXIMITY_CM = 2.0 // cm; distance threshold for touch interaction
 
 @component
 export class HandMenuController extends BaseScriptComponent {
-  @input audioStreamPlayer: AudioStreamPlayer
   @input lyriaMusicController: LyriaMusicController
 
   @input
@@ -32,8 +29,8 @@ export class HandMenuController extends BaseScriptComponent {
   private albumArtImage: Image | null = null
   private lastSongId: number = -1
   private timeText: Text | null = null
-  private playPauseText: Text | null = null
   private playPauseIcon: Image | null = null
+  private playPauseText: Text | null = null
   private playPauseObj: SceneObject | null = null
 
   private wasNearButton: boolean = false
@@ -53,7 +50,6 @@ export class HandMenuController extends BaseScriptComponent {
   // ── Menu construction ───────────────────────────────────────────────────────
 
   private buildMenu(): void {
-    // Create root container
     this.menuRoot = global.scene.createSceneObject("HandMenu_Root")
     this.menuRoot.enabled = false
 
@@ -77,7 +73,7 @@ export class HandMenuController extends BaseScriptComponent {
     this.timeText.horizontalAlignment = HorizontalAlignment.Center
     this.timeText.verticalAlignment = VerticalAlignment.Center
 
-    // 3. Play/Pause button — icon if materials provided, otherwise text
+    // 3. Play/Pause button
     this.playPauseObj = global.scene.createSceneObject("HandMenu_PlayPause")
     this.playPauseObj.setParent(this.menuRoot)
     this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -1, 0))
@@ -104,46 +100,31 @@ export class HandMenuController extends BaseScriptComponent {
     const isFacing = isTracked && facingAngle !== null && facingAngle < FACING_ANGLE_THRESHOLD
 
     this.setVisible(isFacing)
-
     if (!isFacing) return
 
-    // Update transform
     this.updateTransform()
-
-    // Update album art
     this.updateAlbumArt()
-
-    // Update play/pause button
+    this.updateTimeDisplay()
     this.updatePlayPauseLabel()
-
-    // Check right-hand finger proximity to the play/pause button
     this.checkButtonInteraction()
-
   }
 
   private setVisible(visible: boolean): void {
-    if (this.menuRoot) {
-      this.menuRoot.enabled = visible
-    }
+    if (this.menuRoot) this.menuRoot.enabled = visible
   }
 
   private updateTransform(): void {
     if (!this.leftHand || !this.menuRoot) return
-
     const pinkyPos = this.leftHand.pinkyKnuckle.position
     const indexRight = this.leftHand.indexKnuckle.right
     const menuPos = pinkyPos.add(indexRight.uniformScale(SIDE_OFFSET))
-
-    const menuRotation = this.leftHand.indexKnuckle.rotation
-
     this.menuRoot.getTransform().setWorldPosition(menuPos)
-    this.menuRoot.getTransform().setWorldRotation(menuRotation)
+    this.menuRoot.getTransform().setWorldRotation(this.leftHand.indexKnuckle.rotation)
   }
 
   private updateAlbumArt(): void {
     const songId = this.lyriaMusicController.songId
     if (songId === this.lastSongId) return
-
     this.lastSongId = songId
     const tex = this.lyriaMusicController.albumArtTexture
     if (tex && this.albumArtImage?.mainMaterial?.mainPass) {
@@ -151,40 +132,46 @@ export class HandMenuController extends BaseScriptComponent {
     }
   }
 
-  private updatePlayPauseLabel(): void {
-    const isPaused = this.audioStreamPlayer.isPaused
+  private updateTimeDisplay(): void {
+    if (!this.timeText) return
+    const audio = this.lyriaMusicController.audioComponent
+    if (!audio) return
+    const pos = audio.position
+    const dur = audio.duration
+    this.timeText.text = this.formatTime(pos) + " / " + this.formatTime(dur)
+  }
 
-    // Icon mode: swap material
+  private updatePlayPauseLabel(): void {
+    const audio = this.lyriaMusicController.audioComponent
+    if (!audio) return
+    const isPlaying = audio.isPlaying()
+
     if (this.playPauseIcon) {
-      const mat = isPaused ? this.playIconMaterial : this.pauseIconMaterial
+      const mat = isPlaying ? this.pauseIconMaterial : this.playIconMaterial
       if (mat) this.playPauseIcon.mainMaterial = mat
       return
     }
-
-    // Text mode fallback
     if (this.playPauseText) {
-      this.playPauseText.text = isPaused ? "▶ Play" : "⏸ Pause"
+      this.playPauseText.text = isPlaying ? "⏸ Pause" : "▶ Play"
     }
   }
 
   private checkButtonInteraction(): void {
     if (!this.rightHand || !this.playPauseObj) return
+    const audio = this.lyriaMusicController.audioComponent
+    if (!audio) return
 
     const indexTipPos = this.rightHand.indexTip.position
     const buttonWorldPos = this.playPauseObj.getTransform().getWorldPosition()
-    const dist = indexTipPos.distance(buttonWorldPos)
-
-    const isNear = dist < BUTTON_PROXIMITY_CM
+    const isNear = indexTipPos.distance(buttonWorldPos) < BUTTON_PROXIMITY_CM
 
     if (isNear && !this.wasNearButton) {
-      // Finger just entered the button zone — toggle play/pause
-      if (this.audioStreamPlayer.isPaused) {
-        this.audioStreamPlayer.resume()
+      if (audio.isPlaying()) {
+        audio.pause()
       } else {
-        this.audioStreamPlayer.pause()
+        audio.resume()
       }
     }
-
     this.wasNearButton = isNear
   }
 
@@ -192,10 +179,8 @@ export class HandMenuController extends BaseScriptComponent {
 
   private formatTime(sec: number): string {
     const totalSec = Math.max(0, Math.floor(sec))
-    const minutes = Math.floor(totalSec / 60)
-    const seconds = totalSec % 60
-    const mm = minutes < 10 ? "0" + minutes : "" + minutes
-    const ss = seconds < 10 ? "0" + seconds : "" + seconds
-    return mm + ":" + ss
+    const mm = Math.floor(totalSec / 60)
+    const ss = totalSec % 60
+    return (mm < 10 ? "0" + mm : "" + mm) + ":" + (ss < 10 ? "0" + ss : "" + ss)
   }
 }

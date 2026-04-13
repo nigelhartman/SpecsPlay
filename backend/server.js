@@ -1,35 +1,34 @@
 /**
  * Lyria Song Generator — backend/server.js
  *
- * Accepts a WebSocket connection from Spectacles or the test frontend.
- * Protocol (client → server):
- *   { type: "generate", imageBase64: string, style: "kpop"|"rock"|"hiphop" }
+ * Simple HTTP server. No WebSocket, no PCM conversion.
  *
- * Protocol (server → client):
- *   { type: "status", state: "generating"|"done"|"error", message? }
- *   Binary Uint8Array — raw PCM 16-bit 48 kHz stereo chunks
+ * POST /generate   { imageBase64: string, style: string }
+ *                  → { url: "https://BASE_URL/audio/uuid.mp3" }
  *
- * Requirements:
- *   ffmpeg must be installed (brew install ffmpeg)
- *   GEMINI_API_KEY set in ../.env
+ * GET  /audio/:id  → streams the MP3 file
+ *
+ * .env (parent dir):
+ *   GEMINI_API_KEY=...
+ *   BASE_URL=https://xxxx.ngrok-free.app   ← update each ngrok session
  */
 
 "use strict"
 
-const { WebSocketServer } = require("ws")
-const { GoogleGenAI } = require("@google/genai")
-const { execFile } = require("child_process")
-const { promisify } = require("util")
-const execFileAsync = promisify(execFile)
+const http = require("http")
 const fs = require("fs")
-const os = require("os")
 const path = require("path")
+const crypto = require("crypto")
+const { GoogleGenAI } = require("@google/genai")
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? ""
-const LYRIA_MODEL = "lyria-3-clip-preview"
+const PORT       = process.env.PORT     ? parseInt(process.env.PORT) : 3000
+const BASE_URL   = (process.env.BASE_URL ?? `http://localhost:${PORT}`).replace(/\/$/, "")
+const API_KEY    = process.env.GEMINI_API_KEY ?? ""
+const MODEL      = "lyria-3-pro-preview"
+const AUDIO_DIR  = path.join(__dirname, "tmp_audio")
+const FILE_TTL   = 10 * 60 * 1000  // 10 minutes
 
 const STYLE_PROMPTS = {
   kpop:       "upbeat K-pop song with catchy melodic hooks, bright synthesizers, and energetic beat",
@@ -40,114 +39,118 @@ const STYLE_PROMPTS = {
   electronic: "atmospheric electronic music with synthesizer pads, evolving textures, and subtle rhythms",
 }
 
-if (!GEMINI_API_KEY) {
-  console.error("[server] FATAL: GEMINI_API_KEY environment variable not set")
+if (!API_KEY) {
+  console.error("[server] FATAL: GEMINI_API_KEY not set")
   process.exit(1)
 }
+if (!process.env.BASE_URL) {
+  console.warn("[server] WARN: BASE_URL not set — audio URLs will use localhost, Spectacles won't reach them")
+}
+
+if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR)
+
+// ── Cleanup old files ────────────────────────────────────────────────────────
+
+setInterval(() => {
+  const cutoff = Date.now() - FILE_TTL
+  for (const f of fs.readdirSync(AUDIO_DIR)) {
+    const fp = path.join(AUDIO_DIR, f)
+    try {
+      if (fs.statSync(fp).mtimeMs < cutoff) fs.unlinkSync(fp)
+    } catch {}
+  }
+}, 60_000)
 
 // ── Gemini client ─────────────────────────────────────────────────────────────
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+const ai = new GoogleGenAI({ apiKey: API_KEY })
 
-// ── Audio conversion ──────────────────────────────────────────────────────────
-
-async function mp3ToPcm16(mp3Buffer) {
-  const tmpIn  = path.join(os.tmpdir(), `lyria_in_${Date.now()}.mp3`)
-  const tmpOut = path.join(os.tmpdir(), `lyria_out_${Date.now()}.pcm`)
-  try {
-    fs.writeFileSync(tmpIn, mp3Buffer)
-    await execFileAsync("ffmpeg", [
-      "-y", "-i", tmpIn,
-      "-f", "s16le", "-ar", "48000", "-ac", "2",
-      tmpOut,
-    ])
-    return fs.readFileSync(tmpOut)
-  } finally {
-    if (fs.existsSync(tmpIn))  fs.unlinkSync(tmpIn)
-    if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut)
+async function generateMp3(style, imageBase64) {
+  const stylePrompt = STYLE_PROMPTS[style] ?? STYLE_PROMPTS.kpop
+  const parts = [{ text: `Generate a ${stylePrompt} inspired by this scene.` }]
+  if (imageBase64) {
+    parts.push({ inlineData: { mimeType: "image/jpeg", data: imageBase64 } })
   }
+
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: parts,
+    config: { responseModalities: ["AUDIO"] },
+  })
+
+  for (const part of response.candidates[0].content.parts) {
+    if (part.inlineData?.data) {
+      return Buffer.from(part.inlineData.data, "base64")
+    }
+  }
+  throw new Error("No audio in Lyria response")
 }
 
-// ── WebSocket server ──────────────────────────────────────────────────────────
+// ── HTTP server ───────────────────────────────────────────────────────────────
 
-const wss = new WebSocketServer({ port: PORT })
-console.log(`[server] Listening on ws://localhost:${PORT}`)
-console.log("[server] Run:  ngrok http " + PORT + "  then paste the wss:// URL into Lens Studio")
+const server = http.createServer((req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
 
-wss.on("connection", (ws) => {
-  console.log("[server] Client connected")
-
-  const sendStatus = (state, message) => {
-    if (ws.readyState !== ws.OPEN) return
-    ws.send(JSON.stringify({ type: "status", state, ...(message ? { message } : {}) }))
+  if (req.method === "OPTIONS") {
+    res.writeHead(204); res.end(); return
   }
 
-  ws.on("message", async (data, isBinary) => {
-    if (isBinary) return
-
-    let msg
-    try {
-      msg = JSON.parse(data.toString())
-    } catch {
-      return
-    }
-
-    if (msg.type !== "generate") return
-
-    const style      = msg.style ?? "kpop"
-    const imageBase64 = msg.imageBase64 ?? null
-    const stylePrompt = STYLE_PROMPTS[style] ?? STYLE_PROMPTS.kpop
-
-    console.log(`[server] Generating ${style} song...`)
-    sendStatus("generating")
-
-    try {
-      const parts = [
-        { text: `Generate a ${stylePrompt} inspired by this scene.` },
-      ]
-      if (imageBase64) {
-        parts.push({ inlineData: { mimeType: "image/jpeg", data: imageBase64 } })
-      }
-
-      const response = await ai.models.generateContent({
-        model: LYRIA_MODEL,
-        contents: parts,
-        config: { responseModalities: ["AUDIO"] },
-      })
-
-      let mp3Buffer = null
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData?.data) {
-          mp3Buffer = Buffer.from(part.inlineData.data, "base64")
-          console.log(`[server] Received audio: ${mp3Buffer.length} bytes (${part.inlineData.mimeType})`)
-          break
-        }
-      }
-
-      if (!mp3Buffer) {
-        sendStatus("error", "No audio in response")
+  // POST /generate
+  if (req.method === "POST" && req.url === "/generate") {
+    let body = ""
+    req.on("data", chunk => body += chunk)
+    req.on("end", async () => {
+      let style, imageBase64
+      try {
+        ;({ style, imageBase64 } = JSON.parse(body))
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Invalid JSON" }))
         return
       }
 
-      console.log("[server] Converting MP3 → PCM16 48kHz stereo...")
-      const pcm = await mp3ToPcm16(mp3Buffer)
-      console.log(`[server] PCM ready: ${pcm.length} bytes (~${Math.round(pcm.length / 48000 / 4)}s), sending...`)
-
-      // Send in 1-second chunks for progressive playback
-      const CHUNK = 48000 * 2 * 2 // 1s @ 48kHz stereo PCM16
-      for (let i = 0; i < pcm.length; i += CHUNK) {
-        if (ws.readyState !== ws.OPEN) break
-        ws.send(pcm.slice(i, i + CHUNK))
+      console.log(`[server] Generating ${style}...`)
+      try {
+        const mp3 = await generateMp3(style, imageBase64)
+        const filename = crypto.randomUUID() + ".mp3"
+        fs.writeFileSync(path.join(AUDIO_DIR, filename), mp3)
+        const url = `${BASE_URL}/audio/${filename}`
+        console.log(`[server] Done — ${mp3.length} bytes → ${url}`)
+        res.writeHead(200, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ url }))
+      } catch (err) {
+        console.error("[server] Error:", err.message)
+        res.writeHead(500, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: err.message }))
       }
+    })
+    return
+  }
 
-      sendStatus("done")
-      console.log("[server] Done")
-    } catch (err) {
-      console.error("[server] Generation error:", err.message)
-      sendStatus("error", err.message)
+  // GET /audio/:filename
+  if (req.method === "GET" && req.url.startsWith("/audio/")) {
+    const filename = path.basename(req.url)
+    const filepath = path.join(AUDIO_DIR, filename)
+    if (!fs.existsSync(filepath)) {
+      res.writeHead(404); res.end("Not found"); return
     }
-  })
+    const stat = fs.statSync(filepath)
+    res.writeHead(200, {
+      "Content-Type": "audio/mpeg",
+      "Content-Length": stat.size,
+      "Accept-Ranges": "bytes",
+    })
+    fs.createReadStream(filepath).pipe(res)
+    return
+  }
 
-  ws.on("close", () => console.log("[server] Client disconnected"))
-  ws.on("error", (err) => console.error("[server] Error:", err))
+  res.writeHead(404); res.end("Not found")
+})
+
+server.listen(PORT, () => {
+  console.log(`[server] Listening on http://localhost:${PORT}`)
+  console.log(`[server] Run:  ngrok http ${PORT}`)
+  console.log(`[server] Then: set BASE_URL=https://xxxx.ngrok-free.app in .env and backendUrl in Inspector`)
 })
