@@ -26,7 +26,7 @@ const { GoogleGenAI } = require("@google/genai")
 const PORT       = process.env.PORT     ? parseInt(process.env.PORT) : 3000
 const BASE_URL   = (process.env.BASE_URL ?? `http://localhost:${PORT}`).replace(/\/$/, "")
 const API_KEY    = process.env.GEMINI_API_KEY ?? ""
-const MODEL      = "lyria-3-pro-preview"
+const MODEL      = "lyria-3-clip-preview"
 const AUDIO_DIR  = path.join(__dirname, "tmp_audio")
 const FILE_TTL   = 10 * 60 * 1000  // 10 minutes
 
