@@ -2,10 +2,10 @@ import { HandInputData } from "SpectaclesInteractionKit.lspkg/Providers/HandInpu
 import TrackedHand from "SpectaclesInteractionKit.lspkg/Providers/HandInputData/TrackedHand"
 import { LyriaMusicController } from "./LyriaMusicController"
 
-const FACING_ANGLE_THRESHOLD = 40 // degrees; palm faces camera when angle < this
-const SIDE_OFFSET = 5.5 // cm; offset to the side of the hand for menu placement
-const DOWN_OFFSET = 0.5 // cm; downward offset
-const BUTTON_PROXIMITY_CM = 2.0 // cm; distance threshold for touch interaction
+const FACING_ANGLE_THRESHOLD = 40
+const SIDE_OFFSET = 5.5
+const DOWN_OFFSET = 0.5
+const BUTTON_PROXIMITY_CM = 2.0
 
 @component
 export class HandMenuController extends BaseScriptComponent {
@@ -23,6 +23,10 @@ export class HandMenuController extends BaseScriptComponent {
   @hint("Optional icon material for the Pause state")
   pauseIconMaterial: Material
 
+  @input
+  @hint("Icon material for the Restart/Back button")
+  restartIconMaterial: Material
+
   private leftHand: TrackedHand | null = null
   private rightHand: TrackedHand | null = null
 
@@ -33,8 +37,10 @@ export class HandMenuController extends BaseScriptComponent {
   private playPauseIcon: Image | null = null
   private playPauseText: Text | null = null
   private playPauseObj: SceneObject | null = null
+  private restartObj: SceneObject | null = null
 
-  private wasNearButton: boolean = false
+  private wasNearPlayButton: boolean = false
+  private wasNearRestartButton: boolean = false
 
   onAwake(): void {
     this.createEvent("OnStartEvent").bind(() => {
@@ -74,7 +80,22 @@ export class HandMenuController extends BaseScriptComponent {
     this.timeText.horizontalAlignment = HorizontalAlignment.Center
     this.timeText.verticalAlignment = VerticalAlignment.Center
 
-    // 3. Play/Pause button
+    // 3. Restart button (left of play/pause)
+    this.restartObj = global.scene.createSceneObject("HandMenu_Restart")
+    this.restartObj.setParent(this.menuRoot)
+    this.restartObj.getTransform().setLocalPosition(new vec3(-2.5, -2.0, 0))
+    this.restartObj.getTransform().setLocalScale(new vec3(2, 2, 2))
+    if (this.restartIconMaterial) {
+      const restartIcon = this.restartObj.createComponent("Component.Image") as Image
+      restartIcon.mainMaterial = this.restartIconMaterial
+    } else {
+      const restartText = this.restartObj.createComponent("Component.Text") as Text
+      restartText.text = "⏮"
+      restartText.horizontalAlignment = HorizontalAlignment.Center
+      restartText.verticalAlignment = VerticalAlignment.Center
+    }
+
+    // 4. Play/Pause button
     this.playPauseObj = global.scene.createSceneObject("HandMenu_PlayPause")
     this.playPauseObj.setParent(this.menuRoot)
     this.playPauseObj.getTransform().setLocalPosition(new vec3(0, -2.0, 0))
@@ -107,6 +128,7 @@ export class HandMenuController extends BaseScriptComponent {
     this.updateAlbumArt()
     this.updateTimeDisplay()
     this.updatePlayPauseLabel()
+    this.checkTrackFinished()
     this.checkButtonInteraction()
   }
 
@@ -158,23 +180,50 @@ export class HandMenuController extends BaseScriptComponent {
     }
   }
 
+  private checkTrackFinished(): void {
+    const audio = this.lyriaMusicController.audioComponent
+    if (!audio?.audioTrack) return
+    if (audio.isPlaying()) return
+    const dur = audio.duration
+    if (dur > 0 && audio.position >= dur - 0.1) {
+      // Track ended — reset to beginning so user can play again
+      audio.stop(false)
+      audio.play(1)
+      audio.pause()
+    }
+  }
+
   private checkButtonInteraction(): void {
-    if (!this.rightHand || !this.playPauseObj) return
+    if (!this.rightHand) return
     const audio = this.lyriaMusicController.audioComponent
     if (!audio?.audioTrack) return
 
     const indexTipPos = this.rightHand.indexTip.position
-    const buttonWorldPos = this.playPauseObj.getTransform().getWorldPosition()
-    const isNear = indexTipPos.distance(buttonWorldPos) < BUTTON_PROXIMITY_CM
 
-    if (isNear && !this.wasNearButton) {
-      if (audio.isPlaying()) {
-        audio.pause()
-      } else {
-        audio.resume()
+    // Play/pause
+    if (this.playPauseObj) {
+      const isNear = indexTipPos.distance(this.playPauseObj.getTransform().getWorldPosition()) < BUTTON_PROXIMITY_CM
+      if (isNear && !this.wasNearPlayButton) {
+        if (audio.isPlaying()) {
+          audio.pause()
+        } else {
+          audio.resume()
+        }
       }
+      this.wasNearPlayButton = isNear
     }
-    this.wasNearButton = isNear
+
+    // Restart
+    if (this.restartObj) {
+      const isNear = indexTipPos.distance(this.restartObj.getTransform().getWorldPosition()) < BUTTON_PROXIMITY_CM
+      if (isNear && !this.wasNearRestartButton) {
+        audio.stop(false)
+        audio.play(1)
+        audio.pause()
+        print("[HandMenu] Track restarted")
+      }
+      this.wasNearRestartButton = isNear
+    }
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
