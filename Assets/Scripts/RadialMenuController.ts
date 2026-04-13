@@ -84,8 +84,6 @@ export class RadialMenuController extends BaseScriptComponent {
 
     this.buildMenu()
     print("[RadialMenu] Opened")
-    this.buildMenu()
-    print("[RadialMenu] Opened")
   }
 
   private closeMenu(): void {
@@ -121,12 +119,9 @@ export class RadialMenuController extends BaseScriptComponent {
 
   private startGeneration(genre: string): void {
     this.isGenerating = true
-
-    // Re-open a minimal menu showing the ⏳ indicator at the pinch origin
     this.destroyMenu()
     this.isMenuOpen = true
-    this.buildGeneratingMenu()
-
+    this.buildGeneratingMenu(GENRES[GENRE_KEYS.indexOf(genre)])
     this.lyriaMusicController.generateForGenre(genre)
   }
 
@@ -225,7 +220,7 @@ export class RadialMenuController extends BaseScriptComponent {
     this.updateHighlights()
   }
 
-  private buildGeneratingMenu(): void {
+  private buildGeneratingMenu(genreLabel: string): void {
     this.menuRoot = global.scene.createSceneObject("RadialMenuRoot")
     this.menuRoot.getTransform().setWorldPosition(this.pinchOrigin)
     this.orientToCamera()
@@ -237,7 +232,7 @@ export class RadialMenuController extends BaseScriptComponent {
 
     const labelObj = global.scene.createSceneObject("RadialMenu_GenLabel")
     labelObj.setParent(this.menuRoot)
-    labelObj.getTransform().setLocalPosition(new vec3(0, 0, 0))
+    labelObj.getTransform().setLocalPosition(new vec3(0, 1, 0))
     labelObj.getTransform().setLocalScale(new vec3(2, 2, 2))
     this.centerLabel = labelObj.createComponent("Component.Text") as Text
     this.centerLabel.text = "⏳"
@@ -245,6 +240,16 @@ export class RadialMenuController extends BaseScriptComponent {
     this.centerLabel.verticalAlignment = VerticalAlignment.Center
     this.centerLabel.textFill.color = new vec4(1, 1, 1, 1)
     this.centerLabelObj = labelObj
+
+    const subLabelObj = global.scene.createSceneObject("RadialMenu_GenSubLabel")
+    subLabelObj.setParent(this.menuRoot)
+    subLabelObj.getTransform().setLocalPosition(new vec3(0, -1.5, 0))
+    subLabelObj.getTransform().setLocalScale(new vec3(1, 1, 1))
+    const subText = subLabelObj.createComponent("Component.Text") as Text
+    subText.text = "Generating " + genreLabel + " music..."
+    subText.horizontalAlignment = HorizontalAlignment.Center
+    subText.verticalAlignment = VerticalAlignment.Center
+    subText.textFill.color = new vec4(1, 1, 1, 0.85)
   }
 
   private buildErrorMenu(): void {
