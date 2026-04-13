@@ -135,7 +135,7 @@ export class HandMenuController extends BaseScriptComponent {
   private updateTimeDisplay(): void {
     if (!this.timeText) return
     const audio = this.lyriaMusicController.audioComponent
-    if (!audio) return
+    if (!audio?.audioTrack) return
     const pos = audio.position
     const dur = audio.duration
     this.timeText.text = this.formatTime(pos) + " / " + this.formatTime(dur)
@@ -143,7 +143,7 @@ export class HandMenuController extends BaseScriptComponent {
 
   private updatePlayPauseLabel(): void {
     const audio = this.lyriaMusicController.audioComponent
-    if (!audio) return
+    if (!audio?.audioTrack) return
     const isPlaying = audio.isPlaying()
 
     if (this.playPauseIcon) {
@@ -159,7 +159,7 @@ export class HandMenuController extends BaseScriptComponent {
   private checkButtonInteraction(): void {
     if (!this.rightHand || !this.playPauseObj) return
     const audio = this.lyriaMusicController.audioComponent
-    if (!audio) return
+    if (!audio?.audioTrack) return
 
     const indexTipPos = this.rightHand.indexTip.position
     const buttonWorldPos = this.playPauseObj.getTransform().getWorldPosition()
