@@ -19,4 +19,5 @@ Workspaces/**
 .env
 Cache/
 backend/node_modules/
+backend/tmp_audio/
 *.lock
