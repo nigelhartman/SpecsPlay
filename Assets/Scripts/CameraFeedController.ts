@@ -8,6 +8,7 @@
 export class CameraFeedController extends BaseScriptComponent {
   private cameraModule: CameraModule = require("LensStudio:CameraModule")
   public cameraTexture: Texture
+  public hasFrame: boolean = false
   private image: Image
 
   onAwake(): void {
@@ -19,15 +20,16 @@ export class CameraFeedController extends BaseScriptComponent {
         this.cameraTexture = this.cameraModule.requestCamera(cameraRequest)
         const provider = this.cameraTexture.control as CameraTextureProvider
 
-        // Display feed on Image component if one is present (optional, for debugging)
-        this.image = this.sceneObject.getComponent("Component.Image") as Image
-        if (provider && this.image) {
-          provider.onNewFrame.add(this.onNewFrame.bind(this))
-        }
-
         if (!provider) {
           print("[CameraFeedController] ERROR: CameraTextureProvider is null")
+          return
         }
+
+        // Always track when the first frame arrives
+        provider.onNewFrame.add(this.onNewFrame.bind(this))
+
+        // Display feed on Image component if one is present (optional, for debugging)
+        this.image = this.sceneObject.getComponent("Component.Image") as Image
       } catch (e) {
         print("[CameraFeedController] ERROR during setup: " + e)
       }
@@ -35,6 +37,9 @@ export class CameraFeedController extends BaseScriptComponent {
   }
 
   private onNewFrame(): void {
-    this.image.mainPass.baseTex = this.cameraTexture
+    this.hasFrame = true
+    if (this.image) {
+      this.image.mainPass.baseTex = this.cameraTexture
+    }
   }
 }
