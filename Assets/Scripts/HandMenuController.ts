@@ -3,7 +3,7 @@ import TrackedHand from "SpectaclesInteractionKit.lspkg/Providers/HandInputData/
 import { LyriaMusicController } from "./LyriaMusicController"
 
 const FACING_ANGLE_THRESHOLD = 40
-const SIDE_OFFSET = 5.5
+const SIDE_OFFSET = 6.325
 const DOWN_OFFSET = 0.5
 const BUTTON_PROXIMITY_CM = 2.0
 
