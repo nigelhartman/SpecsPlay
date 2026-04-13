@@ -1,0 +1,29 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - BASE_URL=https://specsplay.functionforest.com
+      - PORT=3000
+    volumes:
+      - tmp_audio:/app/tmp_audio
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  tmp_audio:
+  caddy_data:
+  caddy_config:
