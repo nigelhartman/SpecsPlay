@@ -268,7 +268,7 @@ export class RadialMenuController extends BaseScriptComponent {
 
     const msgObj = global.scene.createSceneObject("RadialMenu_ErrorMsg")
     msgObj.setParent(this.menuRoot)
-    msgObj.getTransform().setLocalPosition(new vec3(0, -1.5, 0))
+    msgObj.getTransform().setLocalPosition(new vec3(0, -1.725, 0))
     msgObj.getTransform().setLocalScale(new vec3(0.9, 0.9, 0.9))
     const errMsg = msgObj.createComponent("Component.Text") as Text
     errMsg.text = "Server not reachable.\nPlease restart the lens.\nIf the problem persists,\ncontact the server owner."
