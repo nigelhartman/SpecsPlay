@@ -66,8 +66,7 @@ export class LyriaMusicController extends BaseScriptComponent {
 
   // ── Connection check ────────────────────────────────────────────────────────
 
-  /** Async — resolves once the check completes and updates this.connected */
-  public checkConnection(): Promise<boolean> {
+  private checkConnection(): Promise<boolean> {
     const req = new Request(this.backendUrl + "/health", { method: "GET" })
     return this.internetModule.fetch(req, {}).then((res) => {
       this.connected = res.status === 200
