@@ -40,7 +40,7 @@ mirrorHorizontally:
   options: 4
 previewSource:
   type: string
-  value: InteractiveResources.bundle/Scenes/Sunlit Room
+  value: InteractiveResources.bundle/Scenes/Evening Outdoor
   options: 4
 previewTarget:
   type: int

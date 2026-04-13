@@ -27,10 +27,10 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     albumArtMaterial: false
-    audioStreamPlayer: false
     lyriaMusicController: false
     pauseIconMaterial: false
     playIconMaterial: false
+    restartIconMaterial: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -40,17 +40,17 @@
   Attachments:
     []
   DefaultScriptInputs:
-    - audioStreamPlayer: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      lyriaMusicController: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+    - lyriaMusicController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
       albumArtMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       playIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       pauseIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      restartIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
-    - // @input AssignableType audioStreamPlayer
-    - // @input AssignableType_1 lyriaMusicController
+    - // @input AssignableType lyriaMusicController
     - '// @input Asset.Material albumArtMaterial {"hint":"Unlit material for the album art — empty cover by default, swapped when a song is generated"}'
     - '// @input Asset.Material playIconMaterial {"hint":"Optional icon material for the Play state"}'
     - '// @input Asset.Material pauseIconMaterial {"hint":"Optional icon material for the Pause state"}'
+    - '// @input Asset.Material restartIconMaterial {"hint":"Icon material for the Restart/Back button"}'

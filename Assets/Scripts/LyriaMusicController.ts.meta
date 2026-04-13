@@ -26,10 +26,10 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    audioStreamPlayer: false
+    audioComponent: false
     backendUrl: false
     cameraFeedController: false
-    statusText: false
+    remoteMediaModule: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -40,14 +40,14 @@
     []
   DefaultScriptInputs:
     - backendUrl: ""
-      audioStreamPlayer: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      cameraFeedController: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
-      statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      cameraFeedController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      audioComponent: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+      remoteMediaModule: !<reference.RemoteMediaModule> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
-    - '// @input string backendUrl {"hint":"wss://xxxx.ngrok-free.app  (update each ngrok session)"}'
-    - // @input AssignableType audioStreamPlayer
-    - // @input AssignableType_1 cameraFeedController
-    - // @input Component.Text statusText
+    - '// @input string backendUrl {"hint":"https://xxxx.ngrok-free.app  (update each ngrok session)"}'
+    - // @input AssignableType cameraFeedController
+    - '// @input Component.AudioComponent audioComponent {"hint":"AudioComponent on any SceneObject — used to play the generated MP3"}'
+    - '// @input Asset.RemoteMediaModule remoteMediaModule {"hint":"RemoteMediaModule asset"}'
