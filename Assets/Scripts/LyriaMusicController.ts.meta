@@ -29,7 +29,9 @@
     audioComponent: false
     backendUrl: false
     cameraFeedController: false
+    generationModel: false
     remoteMediaModule: false
+    secretKey: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -40,14 +42,18 @@
     []
   DefaultScriptInputs:
     - backendUrl: ""
+      secretKey: ""
       cameraFeedController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
       audioComponent: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
       remoteMediaModule: !<reference.RemoteMediaModule> 00000000-0000-0000-0000-000000000000
+      generationModel: lyria-3-clip-preview
   ScriptTypes:
     -
       {}
   InputLines:
-    - '// @input string backendUrl {"hint":"https://xxxx.ngrok-free.app  (update each ngrok session)"}'
+    - '// @input string backendUrl = "https://specsplay.functionforest.com" {"hint":"Backend URL — e.g. https://specsplay.functionforest.com"}'
+    - '// @input string secretKey {"hint":"Must match SECRET_KEY on the server — leave blank if server has no key set"}'
     - // @input AssignableType cameraFeedController
     - '// @input Component.AudioComponent audioComponent {"hint":"AudioComponent on any SceneObject — used to play the generated MP3"}'
     - '// @input Asset.RemoteMediaModule remoteMediaModule {"hint":"RemoteMediaModule asset"}'
+    - '// @input string generationModel = "lyria-3-clip-preview" {"hint":"Lyria model for generation: lyria-3-clip-preview or lyria-3-pro-preview"}'

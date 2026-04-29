@@ -1,5 +1,13 @@
 import { CameraFeedController } from "./CameraFeedController"
 
+export type LibrarySong = {
+  id: string
+  style: string
+  url: string
+  artUrl: string
+  createdAt: string
+}
+
 @component
 export class LyriaMusicController extends BaseScriptComponent {
   // ── Inspector inputs ────────────────────────────────────────────────────────
@@ -21,6 +29,10 @@ export class LyriaMusicController extends BaseScriptComponent {
   @input
   @hint("RemoteMediaModule asset")
   remoteMediaModule: RemoteMediaModule
+
+  @input
+  @hint("Lyria model for generation: lyria-3-clip-preview or lyria-3-pro-preview")
+  generationModel: string = "lyria-3-clip-preview"
 
   // ── Public state ────────────────────────────────────────────────────────────
 
@@ -67,6 +79,50 @@ export class LyriaMusicController extends BaseScriptComponent {
     this.postGenerate(genre, imageBase64)
   }
 
+  public fetchLibrary(): Promise<LibrarySong[]> {
+    const req = new Request(this.backendUrl + "/library", { method: "GET" })
+    return this.internetModule.fetch(req, {}).then((res) => {
+      return res.json()
+    }).then((json: any) => {
+      return json as LibrarySong[]
+    }).catch((err) => {
+      print("[LyriaMusicController] Library fetch error: " + err)
+      return []
+    })
+  }
+
+  public loadSongFromLibrary(audioUrl: string, artUrl: string): void {
+    this.loadAudio(audioUrl)
+    if (artUrl) {
+      this.loadAlbumArtFromUrl(artUrl)
+      this.songId++
+    }
+  }
+
+  public setGenerationModel(model: string): void {
+    if (model !== "lyria-3-clip-preview" && model !== "lyria-3-pro-preview") {
+      return
+    }
+    this.generationModel = model
+    print("[LyriaMusicController] Model set to " + model)
+  }
+
+  public getGenerationModel(): string {
+    return this.generationModel === "lyria-3-pro-preview" ? "lyria-3-pro-preview" : "lyria-3-clip-preview"
+  }
+
+  public loadImageTexture(url: string, onSuccess: (tex: Texture) => void, onFailure: () => void): void {
+    const resource = this.internetModule.makeResourceFromUrl(url)
+    this.remoteMediaModule.loadResourceAsImageTexture(
+      resource,
+      onSuccess,
+      (err: string) => {
+        print("[LyriaMusicController] Image load failed: " + err)
+        onFailure()
+      }
+    )
+  }
+
   // ── Connection check ────────────────────────────────────────────────────────
 
   private checkConnection(): Promise<boolean> {
@@ -91,12 +147,17 @@ export class LyriaMusicController extends BaseScriptComponent {
     const req = new Request(this.backendUrl + "/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style: genre, imageBase64, secretKey: this.secretKey }),
+      body: JSON.stringify({
+        style: genre,
+        imageBase64,
+        secretKey: this.secretKey,
+        model: this.getGenerationModel(),
+      }),
     })
 
     this.internetModule.fetch(req, {}).then((response) => {
       return response.json()
-    }).then((json: { url?: string; error?: string }) => {
+    }).then((json: { url?: string; artUrl?: string; error?: string }) => {
       if (!json.url) {
         print("[LyriaMusicController] Error from server: " + (json.error ?? "no url"))
         this.isGenerating = false
@@ -136,6 +197,17 @@ export class LyriaMusicController extends BaseScriptComponent {
       imageBase64,
       (tex: Texture) => { this.albumArtTexture = tex },
       () => { print("[LyriaMusicController] Failed to decode album art") }
+    )
+  }
+
+  private loadAlbumArtFromUrl(artUrl: string): void {
+    this.loadImageTexture(
+      artUrl,
+      (tex: Texture) => {
+        this.albumArtTexture = tex
+        print("[LyriaMusicController] Art loaded from URL")
+      },
+      () => {}
     )
   }
 

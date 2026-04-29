@@ -1,20 +1,20 @@
-- !<AssetImportMetadata/a509ba5b-2a9e-405f-864c-c41a90c4db72>
+- !<AssetImportMetadata/c400770a-061c-4287-b008-be4e5897db7e>
   ImportedAssetIds:
-    TypeScriptAsset: !<reference> 6e6f26ef-1923-4ffd-b297-dd65fd7012d5
+    TypeScriptAsset: !<reference> aed35f72-43af-45a7-8435-391d673e2bd4
   ImporterName: TypeScriptAssetImporter
-  PrimaryAsset: !<reference> 6e6f26ef-1923-4ffd-b297-dd65fd7012d5
+  PrimaryAsset: !<reference> aed35f72-43af-45a7-8435-391d673e2bd4
   PackageType: NotAPackage
   LegacyPackagePolicy: ~
   ExtraData:
     {}
   AssetDataMap:
-    TypeScriptAsset: !<own> 6f473f2a-8cd5-49a1-8597-0edff6e9983d
+    TypeScriptAsset: !<own> c1c42a0a-1439-4d7b-b519-203bacf21e8c
   DependentFiles:
     []
   ImporterSettings: !<AssetImporterSettings>
     {}
   CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
-- !<TypeScriptAssetData/6f473f2a-8cd5-49a1-8597-0edff6e9983d>
+- !<TypeScriptAssetData/c1c42a0a-1439-4d7b-b519-203bacf21e8c>
   SvgIcon: ""
   SetupScript:
     code: ""
@@ -22,13 +22,12 @@
   VersionMajor: 0
   VersionMinor: 0
   VersionPatch: 0
-  ComponentUid: 0b730bd3-2c1b-41d2-a111-b1d6cf02725d
+  ComponentUid: 90fbe739-726f-4f35-b94e-200bb83c31d3
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    centerSpherePrefab: false
+    albumArtMaterial: false
     lyriaMusicController: false
-    settingsUIController: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -39,12 +38,10 @@
     []
   DefaultScriptInputs:
     - lyriaMusicController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      settingsUIController: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
-      centerSpherePrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      albumArtMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
     - // @input AssignableType lyriaMusicController
-    - // @input AssignableType_1 settingsUIController
-    - '// @input Asset.ObjectPrefab centerSpherePrefab {"hint":"Drag in a Sphere prefab for the center dot indicator"}'
+    - '// @input Asset.Material albumArtMaterial {"hint":"Unlit material template for album art thumbnails — one clone per thumbnail"}'

@@ -1,0 +1,47 @@
+- !<AssetImportMetadata/80e52543-1c0d-44ed-a41e-a6776396ce0a>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 23105312-f2da-41cd-9e20-50fb0f6b1fa8
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 23105312-f2da-41cd-9e20-50fb0f6b1fa8
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 2b68d48f-c8a8-45b8-9af9-a664b3828559
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/2b68d48f-c8a8-45b8-9af9-a664b3828559>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: f16f415c-fca9-4327-9100-9020c005bea3
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    settingsIconMaterial: false
+    settingsUIController: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - settingsUIController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      settingsIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input AssignableType settingsUIController
+    - '// @input Asset.Material settingsIconMaterial {"hint":"Optional material icon for the wrist settings button"}'
