@@ -15,6 +15,7 @@ import { HandInputData } from "SpectaclesInteractionKit.lspkg/Providers/HandInpu
 import TrackedHand from "SpectaclesInteractionKit.lspkg/Providers/HandInputData/TrackedHand"
 import WorldCameraFinderProvider from "SpectaclesInteractionKit.lspkg/Providers/CameraProvider/WorldCameraFinderProvider"
 import { LyriaMusicController } from "./LyriaMusicController"
+import { SettingsUIController } from "./SettingsUIController"
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ const ITEM_SCALE = 1.5
 @component
 export class RadialMenuController extends BaseScriptComponent {
   @input lyriaMusicController: LyriaMusicController
+  @input settingsUIController: SettingsUIController
 
   @input
   @hint("Drag in a Sphere prefab for the center dot indicator")
@@ -72,6 +74,7 @@ export class RadialMenuController extends BaseScriptComponent {
   // ── Menu open / close ──────────────────────────────────────────────────────
 
   private openMenu(): void {
+    if (this.isSettingsUiOpen()) return
     if (this.isMenuOpen) return
     this.isMenuOpen = true
     this.pinchOrigin = this.rightHand.indexTip.position
@@ -84,6 +87,59 @@ export class RadialMenuController extends BaseScriptComponent {
 
     this.buildMenu()
     print("[RadialMenu] Opened")
+  }
+
+  private isSettingsUiOpen(): boolean {
+    const ui = this.settingsUIController as any
+    if (!ui) {
+      const g = global as any
+      return typeof g.settingsUiIsOpen === "function" ? g.settingsUiIsOpen() === true : false
+    }
+
+    if (typeof ui.isPanelOpen === "function") {
+      return ui.isPanelOpen() === true
+    }
+
+    if (typeof ui.isOpen === "boolean") {
+      return ui.isOpen
+    }
+
+    if (ui.api && typeof ui.api.isPanelOpen === "function") {
+      return ui.api.isPanelOpen() === true
+    }
+
+    const resolved = this.resolveSettingsController(ui)
+    if (resolved) {
+      if (typeof resolved.isPanelOpen === "function") return resolved.isPanelOpen() === true
+      if (typeof resolved.isOpen === "boolean") return resolved.isOpen
+    }
+
+    const g = global as any
+    if (typeof g.settingsUiIsOpen === "function") {
+      return g.settingsUiIsOpen() === true
+    }
+
+    return false
+  }
+
+  private resolveSettingsController(input: any): any {
+    if (!input) return null
+
+    if (typeof input.getSceneObject === "function") {
+      const so = input.getSceneObject() as SceneObject
+      if (so) {
+        const byType = so.getComponent(SettingsUIController.getTypeName()) as any
+        if (byType) return byType
+
+        const generic = so.getComponent("ScriptComponent") as any
+        if (generic) return generic
+      }
+    }
+
+    if (input.scriptComponent) return input.scriptComponent
+    if (input.component) return input.component
+    if (input.script) return input.script
+    return null
   }
 
   private closeMenu(): void {

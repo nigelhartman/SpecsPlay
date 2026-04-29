@@ -1,2 +1,4 @@
 node_modules/
 .env
+tmp_audio/
+tmp_art/
