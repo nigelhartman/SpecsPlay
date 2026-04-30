@@ -200,24 +200,3 @@ Update these constants in `Assets/Scripts/SettingsUIController.ts` for UI custom
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Troubleshooting
-
-### Backend Connection Issues
-- Verify `BASE_URL` in your Lens code matches your backend URL
-- Check firewall rules allow connections on your API port
-- Ensure backend server is running (`npm start` in `/backend`)
-
-### Music Generation Fails
-- Check API key validity in `.env`
-- Verify API rate limits haven't been exceeded
-- Check backend logs: `docker compose logs -f` (for Docker deployments)
-
-### Spectacles Connection Issues
-- Ensure device and development machine are on the same network
-- Verify Lens Studio preview is running
-- Check Spectacles are properly paired in Lens Studio
-
----
-
-**Questions or Issues?** Open an issue on [GitHub](https://github.com/nigelhartman/SpecsPlay/issues)
