@@ -2,6 +2,8 @@
 
 **SpecsPlay** is an AI-powered AR lens for Spectacles that generates music from your surroundings using Google Lyria. Simply tap your wrist-mounted settings menu to select your preferred music style, and SpecsPlay generates a unique track tailored to your environment in real-time.
 
+https://github.com/user-attachments/assets/d084bf24-1311-4ab2-b8c4-965c6d792a04
+
 ## 🎵 Features
 
 - **AI-Powered Music Generation**: Uses Google Lyria API to generate unique, contextual music
@@ -165,10 +167,6 @@ Update these constants in `Assets/Scripts/SettingsUIController.ts` for UI custom
    - **Lyria Clip**: Faster generation, suitable for real-time use
    - **Lyria Pro**: Higher quality, longer generation time
 3. Selection is saved for your next session
-
-## 📹 Demo Video
-
-[Video Demo Coming Soon - Click here to add video]
 
 ## 🔐 Security & Privacy
 
